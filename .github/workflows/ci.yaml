@@ -21,10 +21,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+      - name: Run fmt-check
+        run: make fmt-check
+      - name: Run lint-check
+        run: make lint-check
+      - name: Run tests
+        run: make test
+      - name: Build and push image
+        run: make publish-image

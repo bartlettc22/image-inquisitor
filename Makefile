@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 VERSION ?= $(shell cat ./VERSION)
-REGISTRY := ghcr.io/bartlettc22
+REGISTRY := ghcr.io/bartlettc22/image-inquisitor
 DOCKER_IMAGE := $(REGISTRY)/image-inquisitor:$(VERSION)
 GO_VERSION ?= 1.22.3
 GOLANGCI_VERSION := golangci/golangci-lint:v1.60.3
@@ -8,14 +8,17 @@ GO_FILES_NO_VENDOR := $(shell find ./* -name "*.go" -not -path "./vendor/*")
 TRIVY_VERSION ?= 0.54.1
 DOCKER_RUN_FLAGS := --rm -u $$(id -u $${USER}):$$(id -g $${USER})
 
-.PHONY: build-docker
-build-docker:
+.PHONY: build-image
+build-image:
 	DOCKER_BUILDKIT=1 docker build \
 	--build-arg VERSION=$(VERSION) \
 	--build-arg GO_VERSION=$(GO_VERSION) \
 	--build-arg TRIVY_VERSION=$(TRIVY_VERSION) \
 	-t $(DOCKER_IMAGE) \
 	.
+
+publish-image: build-image
+	docker push $(DOCKER_IMAGE)
 
 .PHONY: dev-run
 dev-run:
