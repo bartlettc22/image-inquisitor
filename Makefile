@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 VERSION ?= $(shell cat ./VERSION)
-REGISTRY := ghcr.io/bartlettc22/image-inquisitor
+REGISTRY := ghcr.io/bartlettc22
 DOCKER_IMAGE := $(REGISTRY)/image-inquisitor:$(VERSION)
 GO_VERSION ?= 1.22.3
 GOLANGCI_VERSION := golangci/golangci-lint:v1.60.3
