@@ -12,8 +12,6 @@ type Tag struct {
 type ImageReport struct {
 	CurrentTag          string
 	CurrentTagTimestamp time.Time
-	CurrentTagAge       time.Duration
 	LatestTag           string
 	LatestTagTimestamp  time.Time
-	LatestTagAge        time.Duration
 }

@@ -54,10 +54,8 @@ func (r *QuayIORegistry) FetchReport(image *imageUtils.Image) (*registries.Image
 	return &registries.ImageReport{
 		CurrentTag:          image.Tag,
 		CurrentTagTimestamp: currentTagsResponse[0].TagTimestamp,
-		CurrentTagAge:       time.Since(currentTagsResponse[0].TagTimestamp),
 		LatestTag:           latest.Tag,
 		LatestTagTimestamp:  latest.TagTimestamp,
-		LatestTagAge:        time.Since(latest.TagTimestamp),
 	}, nil
 }
 

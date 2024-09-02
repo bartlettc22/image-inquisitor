@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"time"
 
 	"github.com/bartlettc22/image-inquisitor/internal/imageUtils"
 	"github.com/bartlettc22/image-inquisitor/internal/kubernetes"
@@ -25,7 +26,10 @@ func main() {
 	}
 	log.SetLevel(logLevel)
 
-	finalReport := make(FinalReport)
+	finalReport := &FinalReport{
+		Summary: &FinalReportSummary{},
+		Reports: make(map[string]*ImageReport),
+	}
 
 	switch config.ImageSource {
 	case ImageListSourceKubernetes:
@@ -48,7 +52,7 @@ func main() {
 				continue
 			}
 
-			finalReport[image] = &ImageReport{
+			finalReport.Reports[image] = &ImageReport{
 				Image:            parsedImage,
 				KubernetesReport: imageReport,
 			}
@@ -69,7 +73,7 @@ func main() {
 				continue
 			}
 
-			finalReport[image] = &ImageReport{
+			finalReport.Reports[image] = &ImageReport{
 				Image: parsedImage,
 			}
 		}
@@ -88,6 +92,8 @@ func main() {
 		ApplyTrivyReport(finalReport)
 	}
 
+	ApplySummary(finalReport)
+
 	jsonOut, err := json.MarshalIndent(finalReport, "", "    ")
 	if err != nil {
 		log.Fatalf("could not format output to JSON")
@@ -95,22 +101,22 @@ func main() {
 	log.Info(string(jsonOut))
 }
 
-func ApplyRegistryReport(finalReport FinalReport) {
+func ApplyRegistryReport(finalReport *FinalReport) {
 	registryQueries := querier.NewRegistryQuerier()
 
-	for image, imageReport := range finalReport {
+	for image, imageReport := range finalReport.Reports {
 		report, err := registryQueries.FetchReport(imageReport.Image)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
-		finalReport[image].RegistryReport = report
+		finalReport.Reports[image].RegistryReport = report
 
 	}
 }
 
-func ApplyTrivyReport(finalReport FinalReport) {
+func ApplyTrivyReport(finalReport *FinalReport) {
 
 	trivyOutputDir, err := os.MkdirTemp("/tmp", "trivy_*")
 	if err != nil {
@@ -131,7 +137,39 @@ func ApplyTrivyReport(finalReport FinalReport) {
 
 	trivyReport := trivyRunner.Run()
 	for image, report := range trivyReport {
-		finalReport[image].TrivyReport = report
+		finalReport.Reports[image].TrivyReport = report
 	}
 
+}
+
+func ApplySummary(finalReport *FinalReport) {
+	finalReportSummary := &FinalReportSummary{
+		ByRegistryCount: make(map[string]int),
+	}
+	for image, imageReport := range finalReport.Reports {
+		finalReport.Reports[image].Summary = &ImageReportSummary{
+			CurrentTag:              imageReport.RegistryReport.CurrentTag,
+			CurrentTagAgeSeconds:    time.Since(imageReport.RegistryReport.CurrentTagTimestamp).Seconds(),
+			LatestTag:               imageReport.RegistryReport.LatestTag,
+			LatestTagAgeSeconds:     time.Since(imageReport.RegistryReport.LatestTagTimestamp).Seconds(),
+			TagOutOfDateBySeconds:   imageReport.RegistryReport.LatestTagTimestamp.Sub(imageReport.RegistryReport.CurrentTagTimestamp).Seconds(),
+			KubernetesResourceCount: len(imageReport.KubernetesReport.Resources),
+			IssuesCriticalCount:     imageReport.TrivyReport.ImageIssues.Total.Critical,
+			IssuesHighCount:         imageReport.TrivyReport.ImageIssues.Total.High,
+			IssuesMediumCount:       imageReport.TrivyReport.ImageIssues.Total.Medium,
+			IssuesLowCount:          imageReport.TrivyReport.ImageIssues.Total.Low,
+			IssuesUnknownCount:      imageReport.TrivyReport.ImageIssues.Total.Unknown,
+		}
+		finalReportSummary.ImageCount++
+		finalReportSummary.IssuesCriticalCount += imageReport.TrivyReport.ImageIssues.Total.Critical
+		finalReportSummary.IssuesHighCount += imageReport.TrivyReport.ImageIssues.Total.High
+		finalReportSummary.IssuesMediumCount += imageReport.TrivyReport.ImageIssues.Total.Medium
+		finalReportSummary.IssuesLowCount += imageReport.TrivyReport.ImageIssues.Total.Low
+		finalReportSummary.IssuesUnknownCount += imageReport.TrivyReport.ImageIssues.Total.Unknown
+		if _, ok := finalReportSummary.ByRegistryCount[imageReport.Image.Registry]; !ok {
+			finalReportSummary.ByRegistryCount[imageReport.Image.Registry] = 0
+		}
+		finalReportSummary.ByRegistryCount[imageReport.Image.Registry]++
+	}
+	finalReport.Summary = finalReportSummary
 }
