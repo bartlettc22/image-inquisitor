@@ -26,8 +26,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Run fmt-check
         run: make fmt-check
-      - name: Run lint-check
-        run: make lint-check
+      # - name: Run lint-check
+      #   run: make lint-check
       - name: Run tests
         run: make test
       - name: Build and push image

@@ -2,15 +2,14 @@ package kubernetes
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"os"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -23,38 +22,27 @@ type KubernetesConfig struct {
 	IncludeNamespaces []string
 }
 
-func NewKubernetes(config *KubernetesConfig) (*Kubernetes, error) {
-	kubeconfig := os.Getenv("KUBECONFIG")
-	if kubeconfig == "" {
-		kubeconfig = clientcmd.RecommendedHomeFile
-	}
+func NewKubernetes(c *KubernetesConfig) (*Kubernetes, error) {
 
-	encodedKubeconfig := os.Getenv("KUBECONFIGB64")
-	if encodedKubeconfig != "" {
-		decodedBytes, err := base64.StdEncoding.DecodeString(encodedKubeconfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode kubeconfig: %v", err)
-		}
-		err = os.WriteFile("/tmp/kubeconfig", decodedBytes, 0666)
-		if err != nil {
-			return nil, fmt.Errorf("failed to write kubeconfig: %v", err)
-		}
-		kubeconfig = "/tmp/kubeconfig"
-	}
-
-	kconfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	kubeRestConfig, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("error building kubeconfig: %s", err.Error())
+		kubeRestConfig, err = clientcmd.BuildConfigFromFlags(
+			"",
+			clientcmd.NewDefaultClientConfigLoadingRules().GetDefaultFilename(),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("unable to find kube config: %v", err)
+		}
 	}
 
 	// Create a Kubernetes clientset
-	clientset, err := kubernetes.NewForConfig(kconfig)
+	clientset, err := kubernetes.NewForConfig(kubeRestConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error creating Kubernetes client: %s", err.Error())
 	}
 
 	return &Kubernetes{
-		KubernetesConfig: config,
+		KubernetesConfig: c,
 		clientset:        clientset,
 	}, nil
 }
