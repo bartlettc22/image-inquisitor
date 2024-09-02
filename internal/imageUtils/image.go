@@ -60,7 +60,7 @@ func ParseImage(image string) (*Image, error) {
 		tag = tagParts[1]
 	}
 
-	if repository == "" || owner == "" {
+	if repository == "" {
 		return nil, fmt.Errorf("image could not be parsed: '%s'", image)
 	}
 

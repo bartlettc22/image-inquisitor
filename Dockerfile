@@ -41,12 +41,9 @@ FROM scratch
 WORKDIR /
 
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /image-inquisitor /
 
 # This brings over our non-root user
 COPY --from=builder /etc/passwd /etc/passwd
-
-COPY --from=trivy /usr/local/bin/trivy /
 
 # This craziness is required so we can make a /tmp directory with the right
 # permissions so the application can write to it.
@@ -59,8 +56,12 @@ RUN --mount=from=busybox:latest,src=/bin/,dst=/bin/ \
     mkdir -m 1755 /tmp && chown 10001:10001 /tmp && \
     mkdir -m 1755 /home && chown 10001:10001 /home
 
+COPY --from=trivy /usr/local/bin/trivy /bin/trivy
+COPY --from=builder /image-inquisitor /bin/image-inquisitor
+ENV PATH=/bin
+
 # This needs to be the UID (vs. the user name) because Kubernetes will check to ensure this is not a root user
 # It can only do this if the UID is used so it can ensure that it is != 0 (root)
 USER 10001
 
-ENTRYPOINT ["/image-inquisitor"]
+ENTRYPOINT ["image-inquisitor"]
