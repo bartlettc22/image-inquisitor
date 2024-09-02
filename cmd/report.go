@@ -20,6 +20,7 @@ type FinalReportSummary struct {
 	IssuesLowCount      int
 	IssuesUnknownCount  int
 	ByRegistryCount     map[string]int
+	RunDurationSeconds  float64
 }
 
 type ImageReport struct {

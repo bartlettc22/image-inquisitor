@@ -15,6 +15,8 @@ import (
 
 func main() {
 
+	start := time.Now()
+
 	config := loadConfig()
 
 	if config.LogJSON {
@@ -92,13 +94,15 @@ func main() {
 		ApplyTrivyReport(finalReport)
 	}
 
-	ApplySummary(finalReport)
+	ApplySummary(finalReport, start)
 
 	jsonOut, err := json.MarshalIndent(finalReport, "", "    ")
 	if err != nil {
 		log.Fatalf("could not format output to JSON")
 	}
-	log.Info(string(jsonOut))
+	log.WithFields(log.Fields{
+		"component": "final-report",
+	}).Info(string(jsonOut))
 }
 
 func ApplyRegistryReport(finalReport *FinalReport) {
@@ -142,34 +146,46 @@ func ApplyTrivyReport(finalReport *FinalReport) {
 
 }
 
-func ApplySummary(finalReport *FinalReport) {
+func ApplySummary(finalReport *FinalReport, start time.Time) {
 	finalReportSummary := &FinalReportSummary{
 		ByRegistryCount: make(map[string]int),
 	}
 	for image, imageReport := range finalReport.Reports {
-		finalReport.Reports[image].Summary = &ImageReportSummary{
-			CurrentTag:              imageReport.RegistryReport.CurrentTag,
-			CurrentTagAgeSeconds:    time.Since(imageReport.RegistryReport.CurrentTagTimestamp).Seconds(),
-			LatestTag:               imageReport.RegistryReport.LatestTag,
-			LatestTagAgeSeconds:     time.Since(imageReport.RegistryReport.LatestTagTimestamp).Seconds(),
-			TagOutOfDateBySeconds:   imageReport.RegistryReport.LatestTagTimestamp.Sub(imageReport.RegistryReport.CurrentTagTimestamp).Seconds(),
-			KubernetesResourceCount: len(imageReport.KubernetesReport.Resources),
-			IssuesCriticalCount:     imageReport.TrivyReport.ImageIssues.Total.Critical,
-			IssuesHighCount:         imageReport.TrivyReport.ImageIssues.Total.High,
-			IssuesMediumCount:       imageReport.TrivyReport.ImageIssues.Total.Medium,
-			IssuesLowCount:          imageReport.TrivyReport.ImageIssues.Total.Low,
-			IssuesUnknownCount:      imageReport.TrivyReport.ImageIssues.Total.Unknown,
+		finalReport.Reports[image].Summary = &ImageReportSummary{}
+
+		if imageReport.KubernetesReport != nil {
+			finalReport.Reports[image].Summary.KubernetesResourceCount = len(imageReport.KubernetesReport.Resources)
+		}
+
+		if imageReport.RegistryReport != nil {
+			finalReport.Reports[image].Summary.CurrentTag = imageReport.RegistryReport.CurrentTag
+			finalReport.Reports[image].Summary.CurrentTagAgeSeconds = time.Since(imageReport.RegistryReport.CurrentTagTimestamp).Seconds()
+			finalReport.Reports[image].Summary.LatestTag = imageReport.RegistryReport.LatestTag
+			finalReport.Reports[image].Summary.LatestTagAgeSeconds = time.Since(imageReport.RegistryReport.LatestTagTimestamp).Seconds()
+			finalReport.Reports[image].Summary.TagOutOfDateBySeconds = imageReport.RegistryReport.LatestTagTimestamp.Sub(imageReport.RegistryReport.CurrentTagTimestamp).Seconds()
+		}
+
+		if imageReport.TrivyReport != nil {
+			if imageReport.TrivyReport.ImageIssues != nil {
+				finalReport.Reports[image].Summary.IssuesCriticalCount = imageReport.TrivyReport.ImageIssues.Total.Critical
+				finalReport.Reports[image].Summary.IssuesHighCount = imageReport.TrivyReport.ImageIssues.Total.High
+				finalReport.Reports[image].Summary.IssuesMediumCount = imageReport.TrivyReport.ImageIssues.Total.Medium
+				finalReport.Reports[image].Summary.IssuesLowCount = imageReport.TrivyReport.ImageIssues.Total.Low
+				finalReport.Reports[image].Summary.IssuesUnknownCount = imageReport.TrivyReport.ImageIssues.Total.Unknown
+				finalReportSummary.IssuesCriticalCount += imageReport.TrivyReport.ImageIssues.Total.Critical
+				finalReportSummary.IssuesHighCount += imageReport.TrivyReport.ImageIssues.Total.High
+				finalReportSummary.IssuesMediumCount += imageReport.TrivyReport.ImageIssues.Total.Medium
+				finalReportSummary.IssuesLowCount += imageReport.TrivyReport.ImageIssues.Total.Low
+				finalReportSummary.IssuesUnknownCount += imageReport.TrivyReport.ImageIssues.Total.Unknown
+			}
 		}
 		finalReportSummary.ImageCount++
-		finalReportSummary.IssuesCriticalCount += imageReport.TrivyReport.ImageIssues.Total.Critical
-		finalReportSummary.IssuesHighCount += imageReport.TrivyReport.ImageIssues.Total.High
-		finalReportSummary.IssuesMediumCount += imageReport.TrivyReport.ImageIssues.Total.Medium
-		finalReportSummary.IssuesLowCount += imageReport.TrivyReport.ImageIssues.Total.Low
-		finalReportSummary.IssuesUnknownCount += imageReport.TrivyReport.ImageIssues.Total.Unknown
+
 		if _, ok := finalReportSummary.ByRegistryCount[imageReport.Image.Registry]; !ok {
 			finalReportSummary.ByRegistryCount[imageReport.Image.Registry] = 0
 		}
 		finalReportSummary.ByRegistryCount[imageReport.Image.Registry]++
 	}
+	finalReport.Summary.RunDurationSeconds = time.Since(start).Seconds()
 	finalReport.Summary = finalReportSummary
 }

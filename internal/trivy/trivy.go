@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultNumWorkers = 5
+	defaultNumWorkers = 10
 )
 
 type TrivyRunnerConfig struct {
