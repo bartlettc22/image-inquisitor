@@ -31,4 +31,4 @@ jobs:
       - name: Run tests
         run: make test
       - name: Build and push image
-        run: make publish-image
+        run: VERSION=latest make publish-image
