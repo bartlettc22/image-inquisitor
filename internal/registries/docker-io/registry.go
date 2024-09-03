@@ -39,12 +39,12 @@ func (r *DockerIORegistry) IsRegistry(registry string) bool {
 func (r *DockerIORegistry) FetchReport(image *imageUtils.Image) (*registries.ImageReport, error) {
 	latest, err := FetchLatestSemanticVersion(image.Owner, image.Repository)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("docker.io image %s/%s: %v", image.Owner, image.Repository, err)
 	}
 
 	currentTagsResponse, err := FetchTags(image.Owner, image.Repository, image.Tag)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("docker.io image %s/%s: %v", image.Owner, image.Repository, err)
 	}
 	if len(currentTagsResponse) != 1 {
 		return nil, fmt.Errorf("could not find current tag: %s", image.Tag)
@@ -64,12 +64,7 @@ func FetchLatestSemanticVersion(owner, repository string) (*registries.Tag, erro
 		return nil, err
 	}
 
-	tag, err := utils.LatestSemanticVersion(tags)
-	if err != nil {
-		return nil, fmt.Errorf("docker.io image %s/%s: %v", owner, repository, err)
-	}
-
-	return tag, nil
+	return utils.LatestSemanticVersion(tags)
 }
 
 // FetchTags retrieves tags from Quay.io API
@@ -123,7 +118,7 @@ func FetchTags(owner, repository, tag string) ([]*registries.Tag, error) {
 		}
 
 		// TODO: back off and retry 429
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 	return tags, nil
 }

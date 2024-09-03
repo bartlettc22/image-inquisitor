@@ -203,17 +203,18 @@ func ApplySummary(finalReport *FinalReport, start time.Time) {
 
 func LogResults(finalReport *FinalReport) {
 
-	imageSummary := []*ImageReportSummary{}
+	imageSummary := make(map[int]*ImageReportSummary)
 
 	// Output each image report
+	i := 0
 	for image, imageReport := range finalReport.Reports {
 		// log.WithFields(log.Fields{
 		// 	"image":       image,
 		// 	"report_type": "image",
 		// 	"report":      imageReport,
 		// }).Info()
-
-		imageSummary = append(imageSummary, imageReport.Summary)
+		imageSummary[i] = imageReport.Summary
+		// imageSummary = append(imageSummary, imageReport.Summary)
 
 		if imageReport.TrivyReport != nil {
 			if imageReport.TrivyReport.ImageIssues != nil {
