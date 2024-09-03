@@ -251,11 +251,11 @@ func LogResults(finalReport *FinalReport) {
 		imageSummary[image] = imageReport.Summary
 		// imageSummary = append(imageSummary, imageReport.Summary)
 
-		// log.WithFields(log.Fields{
-		// 	"image":       image,
-		// 	"report_type": "image_summary",
-		// 	"report":      imageReport.Summary,
-		// }).Info()
+		log.WithFields(log.Fields{
+			"image":       image,
+			"report_type": "image_summary",
+			"report":      imageReport.Summary,
+		}).Info()
 
 		log.WithFields(log.Fields{
 			"image":       image,
@@ -285,7 +285,7 @@ func LogResults(finalReport *FinalReport) {
 	}
 
 	log.WithFields(log.Fields{
-		"report_type": "image_summary",
+		"report_type": "combined_image_summary",
 		"report":      imageSummary,
 	}).Info()
 
