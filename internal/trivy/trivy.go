@@ -80,7 +80,7 @@ func (tr *TrivyRunner) Run() TrivyReport {
 func worker(id int, outputDir string, images <-chan string, results chan *ScanResult) {
 	for image := range images {
 
-		log.Debugf("starting Trivy scan on: %s", image)
+		log.Debugf("running Trivy scan on: %s", image)
 
 		// Prepare the output file name
 		outputFile := fmt.Sprintf("%s/%s.json", outputDir, strings.ReplaceAll(image, "/", "_"))
@@ -119,7 +119,7 @@ func worker(id int, outputDir string, images <-chan string, results chan *ScanRe
 
 		result.Report = report
 
-		log.Debugf("completed Trivy scan on: %s", image)
+		log.Debugf("DONE running Trivy scan on: %s", image)
 
 		results <- result
 	}

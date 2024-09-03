@@ -5,6 +5,7 @@ import (
 	"github.com/bartlettc22/image-inquisitor/internal/registries"
 	docker_io "github.com/bartlettc22/image-inquisitor/internal/registries/docker-io"
 	quay_io "github.com/bartlettc22/image-inquisitor/internal/registries/quay-io"
+	log "github.com/sirupsen/logrus"
 )
 
 type Registry interface {
@@ -28,17 +29,20 @@ func (rq *RegistryQuerier) addRegistry(registry Registry) {
 }
 
 func (rq *RegistryQuerier) FetchReport(image *imageUtils.Image) (*registries.ImageReport, error) {
+	log.Debugf("fetching image metadata from registry for: %s", image.Image)
 	for _, reg := range rq.registries {
 		if reg.IsRegistry(image.Registry) {
 			report, err := reg.FetchReport(image)
 			if err != nil {
 				return nil, err
 			}
+			log.Debugf("DONE fetching image metadata from registry for: %s", image.Image)
 			return report, nil
 		}
 	}
 
 	// no matching registry found
+	log.Warnf("registry not able to be queried for latest tag for: %s", image.Image)
 	return &registries.ImageReport{
 		CurrentTag: image.Tag,
 	}, nil

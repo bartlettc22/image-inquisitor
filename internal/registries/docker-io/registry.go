@@ -118,7 +118,7 @@ func FetchTags(owner, repository, tag string) ([]*registries.Tag, error) {
 		}
 
 		// TODO: back off and retry 429
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(400 * time.Millisecond)
 	}
 	return tags, nil
 }

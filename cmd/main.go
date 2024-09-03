@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/bartlettc22/image-inquisitor/internal/imageUtils"
@@ -101,39 +103,71 @@ func main() {
 		log.Fatalf("image source unknown")
 	}
 
+	wg := &sync.WaitGroup{}
+	mu := &sync.Mutex{}
+
 	if config.RunRegistry {
-		ApplyRegistryReport(finalReport)
+		wg.Add(1)
+		go func(wg *sync.WaitGroup) {
+			defer wg.Done()
+			registryQueries := querier.NewRegistryQuerier()
+			for image, imageReport := range finalReport.Reports {
+				report, err := registryQueries.FetchReport(imageReport.Image)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				mu.Lock()
+				finalReport.Reports[image].RegistryReport = report
+				mu.Unlock()
+			}
+			// ApplyRegistryReport(finalReport)
+		}(wg)
 	}
 
 	if config.RunTrivy {
-		ApplyTrivyReport(finalReport)
+		wg.Add(1)
+		go func(wg *sync.WaitGroup) {
+			defer wg.Done()
+			// GetApplyTrivyReport(finalReport)
+			trivyReport, err := GetTrivyReport(finalReport.Images())
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			for image, report := range trivyReport {
+				finalReport.Reports[image].TrivyReport = report
+			}
+
+		}(wg)
 	}
+	wg.Wait()
 
 	ApplySummary(finalReport, start)
 
 	LogResults(finalReport)
-
 }
 
-func ApplyRegistryReport(finalReport *FinalReport) {
-	registryQueries := querier.NewRegistryQuerier()
+// func ApplyRegistryReport(finalReport *FinalReport) {
 
-	for image, imageReport := range finalReport.Reports {
-		report, err := registryQueries.FetchReport(imageReport.Image)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
+// 	for image, imageReport := range finalReport.Reports {
+// 		report, err := registryQueries.FetchReport(imageReport.Image)
+// 		if err != nil {
+// 			log.Error(err)
+// 			continue
+// 		}
 
-		finalReport.Reports[image].RegistryReport = report
-	}
-}
+// 		finalReport.Reports[image].RegistryReport = report
+// 	}
+// }
 
-func ApplyTrivyReport(finalReport *FinalReport) {
+func GetTrivyReport(images []string) (trivy.TrivyReport, error) {
 
 	trivyOutputDir, err := os.MkdirTemp("/tmp", "trivy_*")
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("error creating Trivy tmp directory: %v", err)
 	}
 	defer func() {
 		err := os.RemoveAll(trivyOutputDir)
@@ -144,15 +178,16 @@ func ApplyTrivyReport(finalReport *FinalReport) {
 
 	trivyRunner := trivy.NewTrivyRunner(trivy.TrivyRunnerConfig{
 		NumWorkers: 5,
-		Images:     finalReport.Images(),
+		Images:     images,
 		OutputDir:  trivyOutputDir,
 	})
 
-	trivyReport := trivyRunner.Run()
-	for image, report := range trivyReport {
-		finalReport.Reports[image].TrivyReport = report
-	}
+	// trivyReport := trivyRunner.Run()
+	// for image, report := range trivyReport {
+	// 	finalReport.Reports[image].TrivyReport = report
+	// }
 
+	return trivyRunner.Run(), nil
 }
 
 func ApplySummary(finalReport *FinalReport, start time.Time) {
