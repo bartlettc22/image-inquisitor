@@ -32,6 +32,7 @@ type ImageReport struct {
 }
 
 type ImageReportSummary struct {
+	Image                   string
 	CurrentTag              string
 	CurrentTagAgeSeconds    float64
 	LatestTag               string

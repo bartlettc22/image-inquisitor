@@ -160,7 +160,9 @@ func ApplySummary(finalReport *FinalReport, start time.Time) {
 		ByRegistryCount: make(map[string]int),
 	}
 	for image, imageReport := range finalReport.Reports {
-		finalReport.Reports[image].Summary = &ImageReportSummary{}
+		finalReport.Reports[image].Summary = &ImageReportSummary{
+			Image: image,
+		}
 
 		if imageReport.KubernetesReport != nil {
 			finalReport.Reports[image].Summary.KubernetesResourceCount = len(imageReport.KubernetesReport.Resources)
@@ -201,14 +203,35 @@ func ApplySummary(finalReport *FinalReport, start time.Time) {
 
 func LogResults(finalReport *FinalReport) {
 
+	imageSummary := []*ImageReportSummary{}
+
 	// Output each image report
 	for image, imageReport := range finalReport.Reports {
+		// log.WithFields(log.Fields{
+		// 	"image":       image,
+		// 	"report_type": "image",
+		// 	"report":      imageReport,
+		// }).Info()
+
+		imageSummary = append(imageSummary, imageReport.Summary)
+
 		log.WithFields(log.Fields{
 			"image":       image,
-			"report_type": "image",
-			"report":      imageReport,
+			"report_type": "image_vulnerabilities",
+			"report":      imageReport.TrivyReport.ImageIssues.Vulnerabilities.Vulnerabilities,
+		}).Info()
+
+		log.WithFields(log.Fields{
+			"image":       image,
+			"report_type": "image_kubernetes_resources",
+			"report":      imageReport.KubernetesReport.Resources,
 		}).Info()
 	}
+
+	log.WithFields(log.Fields{
+		"report_type": "image_summary",
+		"report":      imageSummary,
+	}).Info()
 
 	log.WithFields(log.Fields{
 		"report_type": "summary",
