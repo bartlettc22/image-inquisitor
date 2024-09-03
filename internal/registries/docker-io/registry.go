@@ -64,7 +64,12 @@ func FetchLatestSemanticVersion(owner, repository string) (*registries.Tag, erro
 		return nil, err
 	}
 
-	return utils.LatestSemanticVersion(tags)
+	tag, err := utils.LatestSemanticVersion(tags)
+	if err != nil {
+		return nil, fmt.Errorf("docker.io image %s/%s: %v", owner, repository, err)
+	}
+
+	return tag, nil
 }
 
 // FetchTags retrieves tags from Quay.io API
@@ -117,8 +122,8 @@ func FetchTags(owner, repository, tag string) ([]*registries.Tag, error) {
 			break
 		}
 
-		// TODO: fix 429
-		time.Sleep(50 * time.Millisecond)
+		// TODO: back off and retry 429
+		time.Sleep(200 * time.Millisecond)
 	}
 	return tags, nil
 }

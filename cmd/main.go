@@ -215,17 +215,25 @@ func LogResults(finalReport *FinalReport) {
 
 		imageSummary = append(imageSummary, imageReport.Summary)
 
-		log.WithFields(log.Fields{
-			"image":       image,
-			"report_type": "image_vulnerabilities",
-			"report":      imageReport.TrivyReport.ImageIssues.Vulnerabilities.Vulnerabilities,
-		}).Info()
+		if imageReport.TrivyReport != nil {
+			if imageReport.TrivyReport.ImageIssues != nil {
+				if imageReport.TrivyReport.ImageIssues.Vulnerabilities != nil {
+					log.WithFields(log.Fields{
+						"image":       image,
+						"report_type": "image_vulnerabilities",
+						"report":      imageReport.TrivyReport.ImageIssues.Vulnerabilities.Vulnerabilities,
+					}).Info()
+				}
+			}
+		}
 
-		log.WithFields(log.Fields{
-			"image":       image,
-			"report_type": "image_kubernetes_resources",
-			"report":      imageReport.KubernetesReport.Resources,
-		}).Info()
+		if imageReport.KubernetesReport != nil {
+			log.WithFields(log.Fields{
+				"image":       image,
+				"report_type": "image_kubernetes_resources",
+				"report":      imageReport.KubernetesReport.Resources,
+			}).Info()
+		}
 	}
 
 	log.WithFields(log.Fields{
