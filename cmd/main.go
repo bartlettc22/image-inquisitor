@@ -36,6 +36,7 @@ func main() {
 	case ImageListSourceKubernetes:
 		k, err := kubernetes.NewKubernetes(&kubernetes.KubernetesConfig{
 			IncludeNamespaces: config.IncludeKubernetesNamespaces,
+			ExcludeNamespaces: config.ExcludeKubernetesNamespaces,
 		})
 		if err != nil {
 			log.Fatal(err)
