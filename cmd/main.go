@@ -96,13 +96,8 @@ func main() {
 
 	ApplySummary(finalReport, start)
 
-	jsonOut, err := json.MarshalIndent(finalReport, "", "    ")
-	if err != nil {
-		log.Fatalf("could not format output to JSON")
-	}
-	log.WithFields(log.Fields{
-		"component": "final-report",
-	}).Info(string(jsonOut))
+	LogResults(finalReport)
+
 }
 
 func ApplyRegistryReport(finalReport *FinalReport) {
@@ -116,7 +111,6 @@ func ApplyRegistryReport(finalReport *FinalReport) {
 		}
 
 		finalReport.Reports[image].RegistryReport = report
-
 	}
 }
 
@@ -188,4 +182,28 @@ func ApplySummary(finalReport *FinalReport, start time.Time) {
 	}
 	finalReport.Summary.RunDurationSeconds = time.Since(start).Seconds()
 	finalReport.Summary = finalReportSummary
+}
+
+func LogResults(finalReport *FinalReport) {
+
+	// Output each image report
+	for image, imageReport := range finalReport.Reports {
+		jsonOut, err := json.Marshal(imageReport)
+		if err != nil {
+			log.Fatalf("could not format image report to JSON")
+		}
+		log.WithFields(log.Fields{
+			"image":  image,
+			"report": "image",
+		}).Info(string(jsonOut))
+	}
+
+	jsonOut, err := json.Marshal(finalReport.Summary)
+	if err != nil {
+		log.Fatalf("could not format summary report to JSON")
+	}
+	log.WithFields(log.Fields{
+		"report": "summary",
+	}).Info(string(jsonOut))
+
 }
