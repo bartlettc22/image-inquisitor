@@ -238,18 +238,30 @@ func ApplySummary(finalReport *FinalReport, start time.Time) {
 
 func LogResults(finalReport *FinalReport) {
 
-	imageSummary := make(map[int]*ImageReportSummary)
+	imageSummary := make(map[string]*ImageReportSummary)
+	// imageSummary := []*ImageReportSummary{}
 
 	// Output each image report
-	i := 0
 	for image, imageReport := range finalReport.Reports {
 		// log.WithFields(log.Fields{
 		// 	"image":       image,
 		// 	"report_type": "image",
 		// 	"report":      imageReport,
 		// }).Info()
-		imageSummary[i] = imageReport.Summary
+		imageSummary[image] = imageReport.Summary
 		// imageSummary = append(imageSummary, imageReport.Summary)
+
+		// log.WithFields(log.Fields{
+		// 	"image":       image,
+		// 	"report_type": "image_summary",
+		// 	"report":      imageReport.Summary,
+		// }).Info()
+
+		log.WithFields(log.Fields{
+			"image":       image,
+			"report_type": "image_registry",
+			"report":      imageReport.RegistryReport,
+		}).Info()
 
 		if imageReport.TrivyReport != nil {
 			if imageReport.TrivyReport.ImageIssues != nil {
@@ -270,8 +282,6 @@ func LogResults(finalReport *FinalReport) {
 				"report":      imageReport.KubernetesReport.Resources,
 			}).Info()
 		}
-
-		i++
 	}
 
 	log.WithFields(log.Fields{

@@ -26,7 +26,11 @@ type Result struct {
 	LastUpdated time.Time `json:"last_updated"`
 }
 
-type DockerIORegistry struct{}
+type DockerIORegistry struct {
+	// X-RateLimit-Limit
+	xRateLimitRemaining int
+	xRateLimitReset     time.Time
+}
 
 func NewRegistry() *DockerIORegistry {
 	return &DockerIORegistry{}
@@ -72,9 +76,12 @@ func FetchTags(owner, repository, tag string) ([]*registries.Tag, error) {
 
 	var tags []*registries.Tag
 
-	nextURL := fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/%s/tags/?page_size=100", owner, repository)
+	// hub.docker.com max
+	pageSize := 100
+
+	nextURL := fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/%s/tags/?page_size=%d", owner, repository, pageSize)
 	if tag != "" {
-		nextURL = fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/%s/tags/%s/?page_size=100", owner, repository, tag)
+		nextURL = fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/%s/tags/%s/?page_size=%d", owner, repository, tag, pageSize)
 	}
 	for {
 		resp, err := http.Get(nextURL)

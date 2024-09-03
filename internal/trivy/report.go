@@ -31,6 +31,7 @@ type ImageIssueVulnerabilities struct {
 
 type ImageIssueVulnerability struct {
 	VulnerabilityID string
+	Severity        string
 	PkgID           string
 	PrimaryURL      string
 	Title           string
@@ -102,6 +103,7 @@ func formatReport(runResults RunResults) TrivyReport {
 					}
 					issues.Vulnerabilities.Vulnerabilities = append(issues.Vulnerabilities.Vulnerabilities, &ImageIssueVulnerability{
 						VulnerabilityID: vulnerability.VulnerabilityID,
+						Severity:        vulnerability.Severity,
 						PkgID:           vulnerability.PkgID,
 						PrimaryURL:      vulnerability.PrimaryURL,
 						Title:           vulnerability.Title,
