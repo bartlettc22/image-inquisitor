@@ -34,6 +34,8 @@ type Config struct {
 	RunRegistry                    bool
 	IncludeKubernetesNamespacesStr string
 	IncludeKubernetesNamespaces    []string
+	ExcludeKubernetesNamespacesStr string
+	ExcludeKubernetesNamespaces    []string
 }
 
 func loadConfig() Config {
@@ -73,6 +75,10 @@ func loadConfig() Config {
 		"include-kubernetes-namespaces",
 		"",
 		"Comma-separated list of Kubernetes namespaces to scan if --image-source=kubernetes")
+	flag.StringVar(&config.ExcludeKubernetesNamespacesStr,
+		"exclude-kubernetes-namespaces",
+		"",
+		"Comma-separated list of Kubernetes namespaces to exclude if --image-source=kubernetes")
 
 	flag.Parse()
 
@@ -90,6 +96,10 @@ func loadConfig() Config {
 
 	if config.IncludeKubernetesNamespacesStr != "" {
 		config.IncludeKubernetesNamespaces = strings.Split(config.IncludeKubernetesNamespacesStr, ",")
+	}
+
+	if config.ExcludeKubernetesNamespacesStr != "" {
+		config.ExcludeKubernetesNamespaces = strings.Split(config.ExcludeKubernetesNamespacesStr, ",")
 	}
 
 	return config

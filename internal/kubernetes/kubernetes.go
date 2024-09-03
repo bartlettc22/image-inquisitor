@@ -20,6 +20,7 @@ type Kubernetes struct {
 
 type KubernetesConfig struct {
 	IncludeNamespaces []string
+	ExcludeNamespaces []string
 }
 
 func NewKubernetes(c *KubernetesConfig) (*Kubernetes, error) {
@@ -71,7 +72,18 @@ func (k *Kubernetes) GetReport() (KubernetesReport, error) {
 			if !included {
 				continue
 			}
-
+		}
+		if len(k.ExcludeNamespaces) > 0 {
+			excluded := false
+			for _, excludedNamespace := range k.ExcludeNamespaces {
+				if namespace.Name == excludedNamespace {
+					excluded = true
+					continue
+				}
+			}
+			if excluded {
+				continue
+			}
 		}
 
 		wg.Add(1)
