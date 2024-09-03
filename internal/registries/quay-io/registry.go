@@ -59,8 +59,8 @@ func (r *QuayIORegistry) FetchReport(image *imageUtils.Image) (*registries.Image
 	}, nil
 }
 
-func FetchLatestSemanticVersion(namespace, repository string) (*registries.Tag, error) {
-	tags, err := FetchTags(namespace, repository, "")
+func FetchLatestSemanticVersion(owner, repository string) (*registries.Tag, error) {
+	tags, err := FetchTags(owner, repository, "")
 	if err != nil {
 		return nil, err
 	}
@@ -69,13 +69,13 @@ func FetchLatestSemanticVersion(namespace, repository string) (*registries.Tag, 
 }
 
 // FetchTags retrieves tags from Quay.io API
-func FetchTags(namespace, repository, tag string) ([]*registries.Tag, error) {
+func FetchTags(owner, repository, tag string) ([]*registries.Tag, error) {
 	page := 1
 
 	var tags []*registries.Tag
 
 	for {
-		url := fmt.Sprintf("https://quay.io/api/v1/repository/%s/%s/tag/?page=%d", namespace, repository, page)
+		url := fmt.Sprintf("https://quay.io/api/v1/repository/%s/%s/tag/?page=%d", owner, repository, page)
 		if tag != "" {
 			url = url + fmt.Sprintf("&specificTag=%s", tag)
 		}

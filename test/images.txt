@@ -1,1 +1,2 @@
-nginx:latest
+docker.io/otel/opentelemetry-collector-contrib:0.103.1
+quay.io/prometheus/prometheus:v2.54.0

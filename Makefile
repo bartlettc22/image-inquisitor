@@ -24,12 +24,12 @@ publish-image: build-image
 dev-run:
 	go run ./... \
 	--log-level=debug \
-	--log-json=false \
+	--log-json=true \
 	--run-trivy=true \
 	--run-registry=true \
-	--image-source kubernetes \
+	--image-source file \
 	--include-kubernetes-namespaces=prometheus \
-	--image-source-file-path=/test/images.txt
+	--image-source-file-path=$$(pwd)/test/images.txt
 
 .PHONY: fmt-check
 fmt-check: ## List files whose formatting differs from gofmt's.
