@@ -235,6 +235,8 @@ func LogResults(finalReport *FinalReport) {
 				"report":      imageReport.KubernetesReport.Resources,
 			}).Info()
 		}
+
+		i++
 	}
 
 	log.WithFields(log.Fields{
