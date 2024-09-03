@@ -32,6 +32,11 @@ func main() {
 		Reports: make(map[string]*ImageReport),
 	}
 
+	excludeRegistriesMap := make(map[string]struct{})
+	for _, reg := range config.ExcludeImageRegistries {
+		excludeRegistriesMap[reg] = struct{}{}
+	}
+
 	switch config.ImageSource {
 	case ImageListSourceKubernetes:
 		k, err := kubernetes.NewKubernetes(&kubernetes.KubernetesConfig{
@@ -54,7 +59,12 @@ func main() {
 				continue
 			}
 
-			finalReport.Reports[image] = &ImageReport{
+			// if excluded, ignore
+			if _, ok := excludeRegistriesMap[parsedImage.Registry]; ok {
+				continue
+			}
+
+			finalReport.Reports[parsedImage.FullName(false)] = &ImageReport{
 				Image:            parsedImage,
 				KubernetesReport: imageReport,
 			}
@@ -75,7 +85,12 @@ func main() {
 				continue
 			}
 
-			finalReport.Reports[image] = &ImageReport{
+			// if excluded, ignore
+			if _, ok := excludeRegistriesMap[parsedImage.Registry]; ok {
+				continue
+			}
+
+			finalReport.Reports[parsedImage.FullName(false)] = &ImageReport{
 				Image: parsedImage,
 			}
 		}

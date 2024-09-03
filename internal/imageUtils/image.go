@@ -14,6 +14,7 @@ type Image struct {
 	Owner      string
 	Repository string
 	Tag        string
+	Digest     string
 }
 
 // List lists the images as a slice of strings
@@ -25,10 +26,20 @@ func (il ImagesList) List() []string {
 	return list
 }
 
+// FullName returns the fully qualified name
+func (img Image) FullName(digest bool) string {
+	joinedPath := path.Join(img.Registry, img.Owner, img.Repository)
+	fullName := fmt.Sprintf("%s:%s", joinedPath, img.Tag)
+	if digest && img.Digest != "" {
+		fullName = fmt.Sprintf("%s@%s", fullName, img.Digest)
+	}
+	return fullName
+}
+
 // ParseImage parses an image string into it's parts (registry, tag, etc.)
 func ParseImage(image string) (*Image, error) {
 
-	var owner, repository, tag string
+	var owner, repository, tag, digest string
 	registry := "docker.io"
 	repoWithTag := ""
 
@@ -52,7 +63,13 @@ func ParseImage(image string) (*Image, error) {
 		repoWithTag = parts[len(parts)-1]
 	}
 
-	tagParts := strings.SplitN(repoWithTag, ":", 2)
+	tagParts := strings.SplitN(repoWithTag, "@", 2)
+	if len(tagParts) > 1 {
+		repoWithTag = tagParts[0]
+		digest = tagParts[1]
+	}
+
+	tagParts = strings.SplitN(repoWithTag, ":", 2)
 	repository = tagParts[0]
 	if len(tagParts) == 1 {
 		tag = "latest"
@@ -70,5 +87,6 @@ func ParseImage(image string) (*Image, error) {
 		Owner:      owner,
 		Repository: repository,
 		Tag:        tag,
+		Digest:     digest,
 	}, nil
 }

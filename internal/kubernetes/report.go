@@ -14,6 +14,7 @@ type kubernetesReportWrapper struct {
 }
 
 func newKubernetesReportWrapper() *kubernetesReportWrapper {
+
 	return &kubernetesReportWrapper{
 		mu:     &sync.Mutex{},
 		report: make(KubernetesReport),

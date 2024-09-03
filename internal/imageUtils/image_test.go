@@ -8,55 +8,78 @@ import (
 func TestParseImage(t *testing.T) {
 
 	testCases := []struct {
-		image               string
-		expectErrorContains string
-		expected            Image
+		image                      string
+		expectErrorContains        string
+		expected                   Image
+		expectedFullName           string
+		expectedFullNameWithDigest string
 	}{
-		{"", "image could not be parsed", Image{}},
+		{"", "image could not be parsed", Image{}, "", ""},
 		{"nginx", "", Image{
 			Registry:   "docker.io",
 			Owner:      "library",
 			Repository: "nginx",
 			Tag:        "latest",
-		}},
+			Digest:     "",
+		}, "docker.io/library/nginx:latest", "docker.io/library/nginx:latest"},
 		{"nginx:2", "", Image{
 			Registry:   "docker.io",
 			Owner:      "library",
 			Repository: "nginx",
 			Tag:        "2",
-		}},
+			Digest:     "",
+		}, "docker.io/library/nginx:2", "docker.io/library/nginx:2"},
+		{"nginx@sha256:ae123d7b8c3e7f9b9b2e0ed4b91b9a760d3cda0a6f874d81b5693b4de6d2d398", "", Image{
+			Registry:   "docker.io",
+			Owner:      "library",
+			Repository: "nginx",
+			Tag:        "latest",
+			Digest:     "sha256:ae123d7b8c3e7f9b9b2e0ed4b91b9a760d3cda0a6f874d81b5693b4de6d2d398",
+		}, "docker.io/library/nginx:latest", "docker.io/library/nginx:latest@sha256:ae123d7b8c3e7f9b9b2e0ed4b91b9a760d3cda0a6f874d81b5693b4de6d2d398"},
+		{"docker.io/library/nginx:v2@sha256:ae123d7b8c3e7f9b9b2e0ed4b91b9a760d3cda0a6f874d81b5693b4de6d2d398", "", Image{
+			Registry:   "docker.io",
+			Owner:      "library",
+			Repository: "nginx",
+			Tag:        "v2",
+			Digest:     "sha256:ae123d7b8c3e7f9b9b2e0ed4b91b9a760d3cda0a6f874d81b5693b4de6d2d398",
+		}, "docker.io/library/nginx:v2", "docker.io/library/nginx:v2@sha256:ae123d7b8c3e7f9b9b2e0ed4b91b9a760d3cda0a6f874d81b5693b4de6d2d398"},
 		{"foo/bar", "", Image{
 			Registry:   "docker.io",
 			Owner:      "foo",
 			Repository: "bar",
 			Tag:        "latest",
-		}},
+			Digest:     "",
+		}, "docker.io/foo/bar:latest", "docker.io/foo/bar:latest"},
 		{"foo/bar:v2", "", Image{
 			Registry:   "docker.io",
 			Owner:      "foo",
 			Repository: "bar",
 			Tag:        "v2",
-		}},
-		{"a/foo/bar", "non-domain as first delimiter", Image{}},
-		{"a/foo/bar:v2", "non-domain as first delimiter", Image{}},
+			Digest:     "",
+		}, "docker.io/foo/bar:v2", "docker.io/foo/bar:v2"},
+		{"a/foo/bar", "non-domain as first delimiter", Image{}, "", ""},
+		{"a/foo/bar:v2", "non-domain as first delimiter", Image{}, "", ""},
 		{"a.com/foo/bar", "", Image{
 			Registry:   "a.com",
 			Owner:      "foo",
 			Repository: "bar",
 			Tag:        "latest",
-		}},
+			Digest:     "",
+		}, "a.com/foo/bar:latest", "a.com/foo/bar:latest"},
 		{"a.io/foo/bar:abc", "", Image{
 			Registry:   "a.io",
 			Owner:      "foo",
 			Repository: "bar",
 			Tag:        "abc",
-		}},
+			Digest:     "",
+		}, "a.io/foo/bar:abc", "a.io/foo/bar:abc"},
 		{"b.net/foo/bar/fizz/buzz:abc", "", Image{
 			Registry:   "b.net",
 			Owner:      "foo/bar/fizz",
 			Repository: "buzz",
 			Tag:        "abc",
-		}},
+			Digest:     "",
+		}, "b.net/foo/bar/fizz/buzz:abc", "b.net/foo/bar/fizz/buzz:abc"},
 	}
 
 	for _, tc := range testCases {
@@ -84,6 +107,15 @@ func TestParseImage(t *testing.T) {
 			}
 			if result.Tag != tc.expected.Tag {
 				t.Errorf("tag for `%s` not correct; want `%s`, got `%s`", tc.image, tc.expected.Tag, result.Tag)
+			}
+			if result.Digest != tc.expected.Digest {
+				t.Errorf("digest for `%s` not correct; want `%s`, got `%s`", tc.image, tc.expected.Digest, result.Digest)
+			}
+			if fullname := result.FullName(false); fullname != tc.expectedFullName {
+				t.Errorf("Full name for `%s` not correct; want `%s`, got `%s`", tc.image, tc.expectedFullName, fullname)
+			}
+			if fullname := result.FullName(true); fullname != tc.expectedFullNameWithDigest {
+				t.Errorf("Full name (with digest) for `%s` not correct; want `%s`, got `%s`", tc.image, tc.expectedFullNameWithDigest, fullname)
 			}
 		}
 	}
