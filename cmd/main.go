@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"os"
 	"time"
 
@@ -180,7 +179,7 @@ func ApplySummary(finalReport *FinalReport, start time.Time) {
 		}
 		finalReportSummary.ByRegistryCount[imageReport.Image.Registry]++
 	}
-	finalReport.Summary.RunDurationSeconds = time.Since(start).Seconds()
+	finalReportSummary.RunDurationSeconds = time.Since(start).Seconds()
 	finalReport.Summary = finalReportSummary
 }
 
@@ -188,22 +187,16 @@ func LogResults(finalReport *FinalReport) {
 
 	// Output each image report
 	for image, imageReport := range finalReport.Reports {
-		jsonOut, err := json.Marshal(imageReport)
-		if err != nil {
-			log.Fatalf("could not format image report to JSON")
-		}
 		log.WithFields(log.Fields{
-			"image":  image,
-			"report": "image",
-		}).Info(string(jsonOut))
+			"image":       image,
+			"report_type": "image",
+			"report":      imageReport,
+		}).Info()
 	}
 
-	jsonOut, err := json.Marshal(finalReport.Summary)
-	if err != nil {
-		log.Fatalf("could not format summary report to JSON")
-	}
 	log.WithFields(log.Fields{
-		"report": "summary",
-	}).Info(string(jsonOut))
+		"report_type": "summary",
+		"report":      finalReport.Summary,
+	}).Info()
 
 }
