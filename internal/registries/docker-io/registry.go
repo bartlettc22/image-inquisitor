@@ -9,7 +9,6 @@ import (
 	"github.com/bartlettc22/image-inquisitor/internal/imageUtils"
 	"github.com/bartlettc22/image-inquisitor/internal/registries"
 	"github.com/bartlettc22/image-inquisitor/internal/utils"
-	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -65,9 +64,6 @@ func FetchLatestSemanticVersion(owner, repository string) (*registries.Tag, erro
 		return nil, err
 	}
 
-	spew.Dump(tags)
-	spew.Dump(utils.LatestSemanticVersion(tags))
-
 	return utils.LatestSemanticVersion(tags)
 }
 
@@ -120,6 +116,9 @@ func FetchTags(owner, repository, tag string) ([]*registries.Tag, error) {
 			})
 			break
 		}
+
+		// TODO: fix 429
+		time.Sleep(50 * time.Millisecond)
 	}
 	return tags, nil
 }
