@@ -239,59 +239,27 @@ func ApplySummary(finalReport *FinalReport, start time.Time) {
 func LogResults(finalReport *FinalReport) {
 
 	imageSummary := make(map[string]*ImageReportSummary)
-	// imageSummary := []*ImageReportSummary{}
 
 	// Output each image report
 	for image, imageReport := range finalReport.Reports {
-		// log.WithFields(log.Fields{
-		// 	"image":       image,
-		// 	"report_type": "image",
-		// 	"report":      imageReport,
-		// }).Info()
 		imageSummary[image] = imageReport.Summary
-		// imageSummary = append(imageSummary, imageReport.Summary)
 
-		log.WithFields(log.Fields{
-			"image":       image,
-			"report_type": "image_summary",
-			"report":      imageReport.Summary,
-		}).Info()
-
-		log.WithFields(log.Fields{
-			"image":       image,
-			"report_type": "image_registry",
-			"report":      imageReport.RegistryReport,
-		}).Info()
+		printReport("image_summary", image, imageReport.Summary)
+		printReport("image_registry", image, imageReport.RegistryReport)
 
 		if imageReport.TrivyReport != nil {
 			if imageReport.TrivyReport.ImageIssues != nil {
 				if imageReport.TrivyReport.ImageIssues.Vulnerabilities != nil {
-					log.WithFields(log.Fields{
-						"image":       image,
-						"report_type": "image_vulnerabilities",
-						"report":      imageReport.TrivyReport.ImageIssues.Vulnerabilities.Vulnerabilities,
-					}).Info()
+					printReport("image_vulnerabilities", image, imageReport.TrivyReport.ImageIssues.Vulnerabilities.Vulnerabilities)
 				}
 			}
 		}
 
 		if imageReport.KubernetesReport != nil {
-			log.WithFields(log.Fields{
-				"image":       image,
-				"report_type": "image_kubernetes_resources",
-				"report":      imageReport.KubernetesReport.Resources,
-			}).Info()
+			printReport("image_kubernetes_resources", image, imageReport.KubernetesReport)
 		}
 	}
 
-	log.WithFields(log.Fields{
-		"report_type": "combined_image_summary",
-		"report":      imageSummary,
-	}).Info()
-
-	log.WithFields(log.Fields{
-		"report_type": "summary",
-		"report":      finalReport.Summary,
-	}).Info()
-
+	printReport("combined_image_summary", "", imageSummary)
+	printReport("summary", "", finalReport.Summary)
 }

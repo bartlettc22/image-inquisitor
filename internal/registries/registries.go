@@ -9,7 +9,7 @@ type Tag struct {
 	TagTimestamp time.Time
 }
 
-type ImageReport struct {
+type RegistryImageReport struct {
 	CurrentTag          string
 	CurrentTagTimestamp time.Time
 	LatestTag           string

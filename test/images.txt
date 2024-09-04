@@ -1,2 +1,6 @@
 docker.io/otel/opentelemetry-collector-contrib:0.103.1
 quay.io/prometheus/prometheus:v2.54.0
+docker.io/google/cloud-sdk:latest
+docker.io/grafana/tempo:2.4.1
+docker.io/grafana/loki:2.9.8
+docker.io/hashicorp/vault:1.14.8

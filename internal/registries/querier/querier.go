@@ -10,7 +10,7 @@ import (
 
 type Registry interface {
 	IsRegistry(registry string) bool
-	FetchReport(image *imageUtils.Image) (*registries.ImageReport, error)
+	FetchReport(image *imageUtils.Image) (*registries.RegistryImageReport, error)
 }
 
 type RegistryQuerier struct {
@@ -28,7 +28,7 @@ func (rq *RegistryQuerier) addRegistry(registry Registry) {
 	rq.registries = append(rq.registries, registry)
 }
 
-func (rq *RegistryQuerier) FetchReport(image *imageUtils.Image) (*registries.ImageReport, error) {
+func (rq *RegistryQuerier) FetchReport(image *imageUtils.Image) (*registries.RegistryImageReport, error) {
 	log.Debugf("fetching image metadata from registry for: %s", image.Image)
 	for _, reg := range rq.registries {
 		if reg.IsRegistry(image.Registry) {
@@ -43,7 +43,7 @@ func (rq *RegistryQuerier) FetchReport(image *imageUtils.Image) (*registries.Ima
 
 	// no matching registry found
 	log.Warnf("registry not able to be queried for latest tag for: %s", image.Image)
-	return &registries.ImageReport{
+	return &registries.RegistryImageReport{
 		CurrentTag: image.Tag,
 	}, nil
 }

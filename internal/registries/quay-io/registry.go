@@ -37,7 +37,7 @@ func (r *QuayIORegistry) IsRegistry(registry string) bool {
 	return registry == RegistryHost
 }
 
-func (r *QuayIORegistry) FetchReport(image *imageUtils.Image) (*registries.ImageReport, error) {
+func (r *QuayIORegistry) FetchReport(image *imageUtils.Image) (*registries.RegistryImageReport, error) {
 	latest, err := FetchLatestSemanticVersion(image.Owner, image.Repository)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (r *QuayIORegistry) FetchReport(image *imageUtils.Image) (*registries.Image
 		return nil, fmt.Errorf("could not find current tag: %s", image.Tag)
 	}
 
-	return &registries.ImageReport{
+	return &registries.RegistryImageReport{
 		CurrentTag:          image.Tag,
 		CurrentTagTimestamp: currentTagsResponse[0].TagTimestamp,
 		LatestTag:           latest.Tag,

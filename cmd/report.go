@@ -1,10 +1,16 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"time"
+
 	"github.com/bartlettc22/image-inquisitor/internal/imageUtils"
 	"github.com/bartlettc22/image-inquisitor/internal/kubernetes"
 	"github.com/bartlettc22/image-inquisitor/internal/registries"
+	"github.com/bartlettc22/image-inquisitor/internal/reports"
 	"github.com/bartlettc22/image-inquisitor/internal/trivy"
+	log "github.com/sirupsen/logrus"
 )
 
 type FinalReport struct {
@@ -28,7 +34,7 @@ type ImageReport struct {
 	Summary          *ImageReportSummary
 	KubernetesReport *kubernetes.KubernetesImageReport
 	TrivyReport      *trivy.TrivyImageReport
-	RegistryReport   *registries.ImageReport
+	RegistryReport   *registries.RegistryImageReport
 }
 
 type ImageReportSummary struct {
@@ -48,8 +54,23 @@ type ImageReportSummary struct {
 
 func (r FinalReport) Images() []string {
 	images := []string{}
-	for image, _ := range r.Reports {
+	for image := range r.Reports {
 		images = append(images, image)
 	}
 	return images
+}
+
+func printReport(reportType, image string, report interface{}) {
+	wrappedReport := reports.ReportWrapper{
+		ReportGenerated: time.Now(),
+		ReportType:      reportType,
+		Image:           image,
+		Report:          report,
+	}
+	reportOut, err := json.Marshal(wrappedReport)
+	if err != nil {
+		log.Errorf("error converting '%s' report to JSON; err: %v, out: %v", reportType, err, wrappedReport)
+	} else {
+		fmt.Println(string(reportOut))
+	}
 }
