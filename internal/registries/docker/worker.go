@@ -1,4 +1,4 @@
-package docker_io
+package docker
 
 import (
 	"fmt"

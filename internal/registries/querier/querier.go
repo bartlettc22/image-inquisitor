@@ -3,8 +3,9 @@ package querier
 import (
 	"github.com/bartlettc22/image-inquisitor/internal/imageUtils"
 	"github.com/bartlettc22/image-inquisitor/internal/registries"
-	docker_io "github.com/bartlettc22/image-inquisitor/internal/registries/docker-io"
-	quay_io "github.com/bartlettc22/image-inquisitor/internal/registries/quay-io"
+	"github.com/bartlettc22/image-inquisitor/internal/registries/docker"
+	"github.com/bartlettc22/image-inquisitor/internal/registries/ghcr"
+	"github.com/bartlettc22/image-inquisitor/internal/registries/quay"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -19,8 +20,9 @@ type RegistryQuerier struct {
 
 func NewRegistryQuerier() *RegistryQuerier {
 	rq := &RegistryQuerier{}
-	rq.addRegistry(quay_io.NewRegistry())
-	rq.addRegistry(docker_io.NewRegistry())
+	rq.addRegistry(quay.NewRegistry())
+	rq.addRegistry(docker.NewRegistry())
+	rq.addRegistry(ghcr.NewRegistry())
 	return rq
 }
 

@@ -121,7 +121,6 @@ func main() {
 				finalReport.Reports[image].RegistryReport = report
 				mu.Unlock()
 			}
-			// ApplyRegistryReport(finalReport)
 		}(wg)
 	}
 
@@ -129,7 +128,6 @@ func main() {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
-			// GetApplyTrivyReport(finalReport)
 			trivyReport, err := GetTrivyReport(finalReport.Images())
 			if err != nil {
 				log.Error(err)
@@ -150,19 +148,6 @@ func main() {
 	LogResults(finalReport)
 }
 
-// func ApplyRegistryReport(finalReport *FinalReport) {
-
-// 	for image, imageReport := range finalReport.Reports {
-// 		report, err := registryQueries.FetchReport(imageReport.Image)
-// 		if err != nil {
-// 			log.Error(err)
-// 			continue
-// 		}
-
-// 		finalReport.Reports[image].RegistryReport = report
-// 	}
-// }
-
 func GetTrivyReport(images []string) (trivy.TrivyReport, error) {
 
 	trivyOutputDir, err := os.MkdirTemp("/tmp", "trivy_*")
@@ -181,11 +166,6 @@ func GetTrivyReport(images []string) (trivy.TrivyReport, error) {
 		Images:     images,
 		OutputDir:  trivyOutputDir,
 	})
-
-	// trivyReport := trivyRunner.Run()
-	// for image, report := range trivyReport {
-	// 	finalReport.Reports[image].TrivyReport = report
-	// }
 
 	return trivyRunner.Run(), nil
 }

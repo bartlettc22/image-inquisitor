@@ -1,4 +1,4 @@
-package quay_io
+package quay
 
 import (
 	"encoding/json"
@@ -12,19 +12,19 @@ import (
 )
 
 const (
-	RegistryHost = "quay.io"
+	registryHost = "quay.io"
 )
-
-type Tag struct {
-	Name           string `json:"name"`
-	StartTimestamp int    `json:"start_ts"`
-}
 
 // TagsResponse represents the response from Quay.io API
 type TagsResponse struct {
 	Tags          []Tag `json:"tags"`
 	Page          int   `json:"page"`
 	HasAdditional bool  `json:"has_additional"`
+}
+
+type Tag struct {
+	Name           string `json:"name"`
+	StartTimestamp int    `json:"start_ts"`
 }
 
 type QuayIORegistry struct{}
@@ -34,7 +34,7 @@ func NewRegistry() *QuayIORegistry {
 }
 
 func (r *QuayIORegistry) IsRegistry(registry string) bool {
-	return registry == RegistryHost
+	return registry == registryHost
 }
 
 func (r *QuayIORegistry) FetchReport(image *imageUtils.Image) (*registries.RegistryImageReport, error) {

@@ -1,4 +1,4 @@
-package docker_io
+package docker
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	RegistryHost = "docker.io"
+	registryHost = "docker.io"
 
 	// PageSize is the max allowed page size for hub.docker.com
 	pageSize = 100
@@ -43,7 +43,7 @@ func NewRegistry() *DockerIORegistry {
 }
 
 func (r *DockerIORegistry) IsRegistry(registry string) bool {
-	return registry == RegistryHost
+	return registry == registryHost
 }
 
 func (r *DockerIORegistry) FetchReport(image *imageUtils.Image) (*registries.RegistryImageReport, error) {
