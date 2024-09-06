@@ -21,7 +21,7 @@ func newKubernetesReportWrapper() *kubernetesReportWrapper {
 	}
 }
 
-func (k *kubernetesReportWrapper) Add(image string, kind string, o KubernetesResourceObject) {
+func (k *kubernetesReportWrapper) Add(image string, kind string, containerName string, isInit bool, o KubernetesResourceObject) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	if _, ok := k.report[image]; !ok {
@@ -32,6 +32,8 @@ func (k *kubernetesReportWrapper) Add(image string, kind string, o KubernetesRes
 		Kind:      kind,
 		Namespace: o.GetObjectMeta().GetNamespace(),
 		Name:      o.GetObjectMeta().GetName(),
+		Container: containerName,
+		IsInit:    isInit,
 	})
 }
 
@@ -40,7 +42,7 @@ func (k *kubernetesReportWrapper) GetReport() KubernetesReport {
 }
 
 type KubernetesImageReport struct {
-	Resources []*KubernetesResource
+	Resources []*KubernetesResource `json:"resources"`
 }
 
 type KubernetesResourceObject interface {
@@ -48,7 +50,9 @@ type KubernetesResourceObject interface {
 }
 
 type KubernetesResource struct {
-	Kind      string
-	Namespace string
-	Name      string
+	Kind      string `json:"kind"`
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+	Container string `json:"container"`
+	IsInit    bool   `json:"isInit"`
 }

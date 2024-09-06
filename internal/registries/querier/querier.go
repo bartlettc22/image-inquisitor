@@ -38,6 +38,9 @@ func (rq *RegistryQuerier) FetchReport(image *imageUtils.Image) (*registries.Reg
 			if err != nil {
 				return nil, err
 			}
+			report.Registry = image.Registry
+			report.Owner = image.Owner
+			report.Repository = image.Repository
 			log.Debugf("DONE fetching image metadata from registry for: %s", image.Image)
 			return report, nil
 		}
@@ -46,6 +49,6 @@ func (rq *RegistryQuerier) FetchReport(image *imageUtils.Image) (*registries.Reg
 	// no matching registry found
 	log.Warnf("registry not able to be queried for latest tag for: %s", image.Image)
 	return &registries.RegistryImageReport{
-		CurrentTag: image.Tag,
+		Tag: image.Tag,
 	}, nil
 }

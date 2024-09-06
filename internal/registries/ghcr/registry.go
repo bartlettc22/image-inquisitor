@@ -70,7 +70,7 @@ func (r *GHCRRegistry) IsRegistry(registry string) bool {
 
 func (r *GHCRRegistry) FetchReport(image *imageUtils.Image) (*registries.RegistryImageReport, error) {
 	report := &registries.RegistryImageReport{
-		CurrentTag: image.Tag,
+		Tag: image.Tag,
 	}
 
 	currentTagsResponse, err := r.getTag(image.Owner, image.Repository, image.Tag)
@@ -80,7 +80,7 @@ func (r *GHCRRegistry) FetchReport(image *imageUtils.Image) (*registries.Registr
 	if currentTagsResponse.TagTimestamp.IsZero() {
 		return report, fmt.Errorf("could not find current tag: %s", image.Tag)
 	}
-	report.CurrentTagTimestamp = currentTagsResponse.TagTimestamp
+	report.TagTimestamp = currentTagsResponse.TagTimestamp
 
 	// Fetch latest Tag
 	latest, err := r.fetchLatestSemanticVersion(image.Owner, image.Repository)

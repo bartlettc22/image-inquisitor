@@ -9,15 +9,15 @@ import (
 type TrivyReport map[string]*TrivyImageReport
 
 type TrivyImageReport struct {
-	ImageCreated time.Time
-	ImageIssues  *ImageIssues
+	ImageCreated time.Time    `json:"imageCreated"`
+	ImageIssues  *ImageIssues `json:"imageIssues"`
 }
 
 type ImageIssues struct {
-	Total             *ImageIssueSeverity
-	Misconfigurations *ImageIssueMisconfigurations
-	Vulnerabilities   *ImageIssueVulnerabilities
-	Secrets           *ImageIssueSecrets
+	Total             *ImageIssueSeverity          `json:"total"`
+	Misconfigurations *ImageIssueMisconfigurations `json:"misconfigurations"`
+	Vulnerabilities   *ImageIssueVulnerabilities   `json:"vulnerabilities"`
+	Secrets           *ImageIssueSecrets           `json:"secrets"`
 }
 
 type ImageIssueMisconfigurations struct {
@@ -26,18 +26,18 @@ type ImageIssueMisconfigurations struct {
 
 type ImageIssueVulnerabilities struct {
 	ImageIssueSeverity
-	Vulnerabilities []*ImageIssueVulnerability
+	Vulnerabilities []*ImageIssueVulnerability `json:"vulnerabilities"`
 }
 
 type ImageIssueVulnerability struct {
-	VulnerabilityID string
-	Severity        string
-	PkgID           string
-	PrimaryURL      string
-	Title           string
-	Description     string
-	NvdV3Score      float64
-	PublishedDate   *time.Time
+	VulnerabilityID string     `json:"registry"`
+	Severity        string     `json:"severity"`
+	PkgID           string     `json:"pkgID"`
+	PrimaryURL      string     `json:"primaryURL"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	NvdV3Score      float64    `json:"nvdV3Score"`
+	PublishedDate   *time.Time `json:"publishedDate"`
 }
 
 type ImageIssueSecrets struct {
@@ -53,11 +53,11 @@ type IssueWithSeverity interface {
 }
 
 type ImageIssueSeverity struct {
-	Unknown  int
-	Low      int
-	Medium   int
-	High     int
-	Critical int
+	Unknown  int `json:"unknown"`
+	Low      int `json:"low"`
+	Medium   int `json:"medium"`
+	High     int `json:"high"`
+	Critical int `json:"critical"`
 }
 
 func (iis *ImageIssueSeverity) AddSeverity(severity string) {

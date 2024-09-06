@@ -121,13 +121,13 @@ func (k *Kubernetes) GetReport() (KubernetesReport, error) {
 
 				// Iterate through all init containers
 				for _, container := range pod.Spec.InitContainers {
-					report.Add(container.Image, "Pod", &pod)
+					report.Add(container.Image, "Pod", container.Name, true, &pod)
 					pod.GetObjectKind()
 				}
 
 				// Iterate through all regular containers
 				for _, container := range pod.Spec.Containers {
-					report.Add(container.Image, "Pod", &pod)
+					report.Add(container.Image, "Pod", container.Name, false, &pod)
 				}
 			}
 
@@ -143,12 +143,12 @@ func (k *Kubernetes) GetReport() (KubernetesReport, error) {
 
 				// Iterate through all init containers
 				for _, container := range deployment.Spec.Template.Spec.InitContainers {
-					report.Add(container.Image, "Deployment", &deployment)
+					report.Add(container.Image, "Deployment", container.Name, true, &deployment)
 				}
 
 				// Iterate through all regular containers
 				for _, container := range deployment.Spec.Template.Spec.Containers {
-					report.Add(container.Image, "Deployment", &deployment)
+					report.Add(container.Image, "Deployment", container.Name, false, &deployment)
 				}
 			}
 
@@ -164,12 +164,12 @@ func (k *Kubernetes) GetReport() (KubernetesReport, error) {
 
 				// Iterate through all init containers
 				for _, container := range daemonset.Spec.Template.Spec.InitContainers {
-					report.Add(container.Image, "DaemonSet", &daemonset)
+					report.Add(container.Image, "DaemonSet", container.Name, true, &daemonset)
 				}
 
 				// Iterate through all regular containers
 				for _, container := range daemonset.Spec.Template.Spec.Containers {
-					report.Add(container.Image, "DaemonSet", &daemonset)
+					report.Add(container.Image, "DaemonSet", container.Name, false, &daemonset)
 				}
 			}
 
@@ -185,12 +185,12 @@ func (k *Kubernetes) GetReport() (KubernetesReport, error) {
 
 				// Iterate through all init containers
 				for _, container := range statefulset.Spec.Template.Spec.InitContainers {
-					report.Add(container.Image, "StatefulSet", &statefulset)
+					report.Add(container.Image, "StatefulSet", container.Name, true, &statefulset)
 				}
 
 				// Iterate through all regular containers
 				for _, container := range statefulset.Spec.Template.Spec.Containers {
-					report.Add(container.Image, "StatefulSet", &statefulset)
+					report.Add(container.Image, "StatefulSet", container.Name, false, &statefulset)
 				}
 			}
 
@@ -206,12 +206,12 @@ func (k *Kubernetes) GetReport() (KubernetesReport, error) {
 
 				// Iterate through all init containers
 				for _, container := range cronjob.Spec.JobTemplate.Spec.Template.Spec.InitContainers {
-					report.Add(container.Image, "CronJob", &cronjob)
+					report.Add(container.Image, "CronJob", container.Name, true, &cronjob)
 				}
 
 				// Iterate through all regular containers
 				for _, container := range cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers {
-					report.Add(container.Image, "CronJob", &cronjob)
+					report.Add(container.Image, "CronJob", container.Name, false, &cronjob)
 				}
 			}
 
@@ -241,13 +241,13 @@ func (k *Kubernetes) GetReport() (KubernetesReport, error) {
 				// Iterate through all init containers
 				for _, container := range job.Spec.Template.Spec.InitContainers {
 					// nsImages = append(nsImages, container.Image)
-					report.Add(container.Image, "Job", &job)
+					report.Add(container.Image, "Job", container.Name, true, &job)
 				}
 
 				// Iterate through all regular containers
 				for _, container := range job.Spec.Template.Spec.Containers {
 					// nsImages = append(nsImages, container.Image)
-					report.Add(container.Image, "Job", &job)
+					report.Add(container.Image, "Job", container.Name, false, &job)
 				}
 			}
 

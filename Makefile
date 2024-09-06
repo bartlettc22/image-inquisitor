@@ -25,9 +25,8 @@ dev-run:
 	go run ./... \
 	--log-level=debug \
 	--log-json=true \
-	--run-trivy=true \
-	--run-registry=true \
 	--image-source file \
+	--report-outputs=summary,summaryImageCombined,summaryRegistry,imageSummary,imageRegistry,imageVulnerabilities,imageKubernetes \
 	--include-kubernetes-namespaces=prometheus \
 	--image-source-file-path=$$(pwd)/test/images.txt
 

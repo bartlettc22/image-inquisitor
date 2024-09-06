@@ -4,6 +4,7 @@ import (
 	"flag"
 	"strings"
 
+	"github.com/bartlettc22/image-inquisitor/internal/reports"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,6 +30,13 @@ type Config struct {
 	LogJSON                        bool
 	ImageSourceStr                 string
 	ImageSource                    ImageListSource
+	ImageSourcesStr                string
+	ImageSources                   []string
+	GcsBucket                      string
+	ReportOutputsStr               string
+	ReportOutputs                  ReportOutputs
+	ReportOutputDestinationsStr    string
+	ReportOutputDestinations       []string
 	ImageSourceFilePath            string
 	RunTrivy                       bool
 	RunRegistry                    bool
@@ -38,6 +46,17 @@ type Config struct {
 	ExcludeKubernetesNamespaces    []string
 	ExcludeImageRegistriesStr      string
 	ExcludeImageRegistries         []string
+}
+
+type ReportOutputs []reports.ReportType
+
+func (r ReportOutputs) Contains(reportType reports.ReportType) bool {
+	for _, report := range r {
+		if report == reportType {
+			return true
+		}
+	}
+	return false
 }
 
 func loadConfig() Config {
@@ -53,20 +72,30 @@ func loadConfig() Config {
 		true,
 		"Whether to log JSON output")
 
-	flag.BoolVar(&config.RunTrivy,
-		"run-trivy",
-		true,
-		"Whether to run Trivy issue scanner.")
-
-	flag.BoolVar(&config.RunRegistry,
-		"run-registry",
-		true,
-		"Whether to run Registry metadata.")
-
 	flag.StringVar(&config.ImageSourceStr,
 		"image-source",
 		"kubernetes",
 		"Source of images to scan.  Can be one of 'kubernetes' or 'file'. If 'file', must specify 'image-source-file-path' parameter.")
+
+	flag.StringVar(&config.ImageSourcesStr,
+		"image-sources",
+		"kubernetes",
+		"Comma-separated list of image sources to scan.  Can be one or more of of [kubernetes, file, gcs]. If 'file', must specify 'image-source-file-path' parameter.  If 'gcs', must specify 'gcs-*' parameters")
+
+	flag.StringVar(&config.GcsBucket,
+		"gcs-bucket",
+		"",
+		"GCS bucket to pull source images from")
+
+	flag.StringVar(&config.ReportOutputsStr,
+		"report-outputs",
+		"summary,summaryImageCombined,summaryRegistry,imageSummary,imageRegistry,imageVulnerabilities,imageKubernetes",
+		"Comma-separated list of reports to output.  Can be one or more of [summary, summaryImageCombined, summaryRegistry, imageSummary, imageRegistry, imageVulnerabilities, imageKubernetes]")
+
+	flag.StringVar(&config.ReportOutputDestinationsStr,
+		"report-output-destinations",
+		"stdout",
+		"Comma-separated list of output sources.  Can be one or more of [gcs, stdout]")
 
 	flag.StringVar(&config.ImageSourceFilePath,
 		"image-source-file-path",
@@ -110,6 +139,27 @@ func loadConfig() Config {
 
 	if config.ExcludeImageRegistriesStr != "" {
 		config.ExcludeImageRegistries = strings.Split(config.ExcludeImageRegistriesStr, ",")
+	}
+
+	config.ImageSources = strings.Split(config.ImageSourcesStr, ",")
+	reportOutputsList := strings.Split(config.ReportOutputsStr, ",")
+	for _, r := range reportOutputsList {
+		if reports.IsValidReportType(r) {
+			config.ReportOutputs = append(config.ReportOutputs, reports.ReportType(r))
+		} else {
+			log.Fatalf("invalid report type: '%s'", r)
+		}
+	}
+
+	config.ReportOutputDestinations = strings.Split(config.ReportOutputDestinationsStr, ",")
+
+	for _, d := range config.ReportOutputDestinations {
+		switch d {
+		case "gcs":
+			if config.GcsBucket == "" {
+				log.Fatal("gcs-bucket must be set")
+			}
+		}
 	}
 
 	return config

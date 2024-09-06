@@ -48,7 +48,7 @@ func (r *DockerIORegistry) IsRegistry(registry string) bool {
 
 func (r *DockerIORegistry) FetchReport(image *imageUtils.Image) (*registries.RegistryImageReport, error) {
 	report := &registries.RegistryImageReport{
-		CurrentTag: image.Tag,
+		Tag: image.Tag,
 	}
 
 	currentTagsResponse, err := r.getTag(image.Owner, image.Repository, image.Tag)
@@ -58,10 +58,10 @@ func (r *DockerIORegistry) FetchReport(image *imageUtils.Image) (*registries.Reg
 	if currentTagsResponse.TagTimestamp.IsZero() {
 		return report, fmt.Errorf("could not find current tag: %s", image.Tag)
 	}
-	report.CurrentTagTimestamp = currentTagsResponse.TagTimestamp
+	report.TagTimestamp = currentTagsResponse.TagTimestamp
 
 	// Fetch latest Tag
-	latest, err := r.fetchLatestSemanticVersion(image.Owner, image.Repository, report.CurrentTagTimestamp)
+	latest, err := r.fetchLatestSemanticVersion(image.Owner, image.Repository, report.TagTimestamp)
 	if err != nil {
 		return report, fmt.Errorf("docker.io image %s/%s: %v", image.Owner, image.Repository, err)
 	}

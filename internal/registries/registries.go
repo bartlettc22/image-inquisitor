@@ -10,8 +10,11 @@ type Tag struct {
 }
 
 type RegistryImageReport struct {
-	CurrentTag          string
-	CurrentTagTimestamp time.Time
-	LatestTag           string
-	LatestTagTimestamp  time.Time
+	Registry           string    `json:"registry"`
+	Owner              string    `json:"owner"`
+	Repository         string    `json:"repository"`
+	Tag                string    `json:"tag"`
+	TagTimestamp       time.Time `json:"tagTimestamp"`
+	LatestTag          string    `json:"latestSemverTag"`
+	LatestTagTimestamp time.Time `json:"latestSemverTagTimestamp"`
 }
