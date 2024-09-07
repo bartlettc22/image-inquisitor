@@ -1,13 +1,22 @@
 package types
 
-type ImageSource string
+type ImageSourceType string
 
 const (
-	ImageSourceKubernetes ImageSource = "kubernetes"
-	ImageSourceFile       ImageSource = "file"
-	ImageSourceGCS        ImageSource = "gcs"
+	ImageSourceTypeKubernetes ImageSourceType = "kubernetes"
+	ImageSourceTypeFile       ImageSourceType = "file"
+	ImageSourceTypeGCS        ImageSourceType = "gcs"
 )
 
-func (s ImageSource) String() string {
+func (s ImageSourceType) String() string {
 	return string(s)
+}
+
+func (s ImageSourceType) IsValid() bool {
+	switch s {
+	case ImageSourceTypeKubernetes, ImageSourceTypeFile, ImageSourceTypeGCS:
+		return true
+	default:
+		return false
+	}
 }

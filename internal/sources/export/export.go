@@ -3,7 +3,6 @@ package export
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	exportapimetadata "github.com/bartlettc22/image-inquisitor/internal/sources/export/api/metadata"
@@ -14,7 +13,7 @@ import (
 
 type Exporter struct {
 	*ExporterConfig
-	reports map[sourcetypes.ImageSource]exporttypes.ExportableReport
+	reports map[sourcetypes.ImageSourceType]exporttypes.ExportableReport
 }
 
 type ExporterConfig struct {
@@ -27,11 +26,11 @@ type ExporterConfig struct {
 func NewExporter(config *ExporterConfig) *Exporter {
 	return &Exporter{
 		ExporterConfig: config,
-		reports:        make(map[sourcetypes.ImageSource]exporttypes.ExportableReport),
+		reports:        make(map[sourcetypes.ImageSourceType]exporttypes.ExportableReport),
 	}
 }
 
-func (e *Exporter) AddReport(sourceType sourcetypes.ImageSource, report exporttypes.ExportableReport) {
+func (e *Exporter) AddReport(sourceType sourcetypes.ImageSourceType, report exporttypes.ExportableReport) {
 	e.reports[sourceType] = report
 }
 
@@ -45,7 +44,7 @@ func (e *Exporter) Export(ctx context.Context) error {
 		for image, sourceReport := range report.Export() {
 			if _, ok := spec.Images[image]; !ok {
 				spec.Images[image] = &exportapiv1alpha1.ExportImage{
-					Sources: make(map[sourcetypes.ImageSource]interface{}),
+					Sources: make(map[sourcetypes.ImageSourceType]interface{}),
 				}
 			}
 			spec.Images[image].Sources[sourceType] = sourceReport
@@ -69,7 +68,6 @@ func (e *Exporter) Export(ctx context.Context) error {
 		case exporttypes.ExportDestinationFile:
 			errList = append(errList, e.ExportFile(ctx, report))
 		case exporttypes.ExportDestinationGCS:
-			fmt.Println("GCS")
 			errList = append(errList, e.ExportGCS(ctx, report))
 		}
 	}

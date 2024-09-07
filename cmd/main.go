@@ -8,13 +8,10 @@ import (
 	"time"
 
 	"github.com/bartlettc22/image-inquisitor/internal/config"
-	"github.com/bartlettc22/image-inquisitor/internal/imageUtils"
-	"github.com/bartlettc22/image-inquisitor/internal/kubernetes"
 	"github.com/bartlettc22/image-inquisitor/internal/registries/querier"
 	"github.com/bartlettc22/image-inquisitor/internal/reports"
 	"github.com/bartlettc22/image-inquisitor/internal/sources"
 	"github.com/bartlettc22/image-inquisitor/internal/sources/export"
-	sourcetypes "github.com/bartlettc22/image-inquisitor/internal/sources/types"
 	"github.com/bartlettc22/image-inquisitor/internal/trivy"
 	log "github.com/sirupsen/logrus"
 )
@@ -37,76 +34,47 @@ func main() {
 
 	masterSummaryReportList := reports.NewSummaryReportList(start)
 	masterImageReportList := reports.NewImageReportList(start)
-	exporter := export.NewExporter(&export.ExporterConfig{
-		ExternalID:   cfg.ExportExternalID,
-		Destinations: cfg.ExportDestinations,
-		FilePath:     cfg.ExportFilePath,
-		GCSBucket:    cfg.ExportGCSBucket,
-	})
 
 	excludeRegistriesMap := make(map[string]struct{})
 	for _, reg := range cfg.ExcludeImageRegistries {
 		excludeRegistriesMap[reg] = struct{}{}
 	}
 
-	masterImagesList := make(imageUtils.ImagesList)
-
-	for _, source := range cfg.ImageSources {
-		switch source {
-		case config.ImageListSourceKubernetes:
-			k, err := kubernetes.NewKubernetes(&kubernetes.KubernetesConfig{
-				IncludeNamespaces: cfg.IncludeKubernetesNamespaces,
-				ExcludeNamespaces: cfg.ExcludeKubernetesNamespaces,
-			})
-			if err != nil {
-				log.Fatal(err)
-			}
-			kubeReport, err := k.GetReport()
-			if err != nil {
-				log.Fatalf("error listing images from Kubernetes: %s", err.Error())
-			}
-
-			for image, kubeReport := range kubeReport {
-
-				parsedImage, err := imageUtils.ParseImage(image)
-				if err != nil {
-					log.Errorf("error parsing image %s, skipping: %v", image, err)
-					continue
-				}
-
-				// if excluded, ignore
-				if _, ok := excludeRegistriesMap[parsedImage.Registry]; ok {
-					continue
-				}
-
-				masterImagesList[parsedImage.FullName(false)] = parsedImage
-
-				if cfg.ReportOutputs.Contains(reports.ReportTypeImageKubernetes) {
-					masterImageReportList.AddImageReport(reports.ReportTypeImageKubernetes, image, kubeReport)
-				}
-			}
-			exporter.AddReport(sourcetypes.ImageSourceKubernetes, &kubeReport)
-		case config.ImageListSourceFile:
-			fileSource := sources.NewFileSource(&sources.FileSourceConfig{
-				SourceFilePath:    cfg.ImageSourceFilePath,
-				ExcludeRegistries: excludeRegistriesMap,
-			})
-			fileSourceReport, err := fileSource.GetReport(ctx)
-			if err != nil {
-				log.Fatalf("%v", err)
-			}
-			for parsedImageName, parsedImage := range fileSourceReport.Images() {
-				masterImagesList[parsedImageName] = parsedImage
-			}
-			exporter.AddReport(sourcetypes.ImageSourceFile, fileSourceReport)
-		default:
-			log.Fatalf("image source unknown")
+	sourceImages, err := sources.FetchImages(ctx, &sources.ImageSourcesConfig{
+		ImageSourceTypes: cfg.ImageSources,
+		KubernetesSourceConfig: &sources.KubernetesSourceConfig{
+			IncludeNamespaces: cfg.IncludeKubernetesNamespaces,
+			ExcludeNamespaces: cfg.ExcludeKubernetesNamespaces,
+			ExcludeRegistries: excludeRegistriesMap,
+		},
+		FileSourceConfig: &sources.FileSourceConfig{
+			SourceFilePath:    cfg.ImageSourceFilePath,
+			ExcludeRegistries: excludeRegistriesMap,
+		},
+	})
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	if len(cfg.ExportDestinations) > 0 {
+		err := sourceImages.Export(ctx, &export.ExporterConfig{
+			ExternalID:   cfg.ExportExternalID,
+			Destinations: cfg.ExportDestinations,
+			FilePath:     cfg.ExportFilePath,
+			GCSBucket:    cfg.ExportGCSBucket,
+		})
+		if err != nil {
+			log.Fatalf("%v", err)
 		}
 	}
 
-	err = exporter.Export(ctx)
-	if err != nil {
-		log.Errorf("%v", err)
+	if cfg.ReportOutputs.Contains(reports.ReportTypeImageKubernetes) {
+		kubernetesSourceReport, err := sourceImages.GetKubernetesSourceReports(ctx)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		for image, kubeReport := range kubernetesSourceReport.KubeReports() {
+			masterImageReportList.AddImageReport(reports.ReportTypeImageKubernetes, image, kubeReport)
+		}
 	}
 
 	wg := &sync.WaitGroup{}
@@ -118,7 +86,7 @@ func main() {
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
 			registryQueries := querier.NewRegistryQuerier()
-			for imageFullName, image := range masterImagesList {
+			for imageFullName, image := range sourceImages.List() {
 				registryReport, err := registryQueries.FetchReport(image)
 				if err != nil {
 					log.Error(err)
@@ -135,7 +103,7 @@ func main() {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
-			trivyReport, err := GetTrivyReport(masterImagesList.List())
+			trivyReport, err := GetTrivyReport(sourceImages.List().AsSlice())
 			if err != nil {
 				log.Error(err)
 				return
@@ -150,7 +118,7 @@ func main() {
 	}
 	wg.Wait()
 
-	masterSummaryReportList.GenerateSummaryReports(masterImagesList, masterImageReportList)
+	masterSummaryReportList.GenerateSummaryReports(sourceImages.List(), masterImageReportList)
 	masterSummaryReportList.Output()
 	masterImageReportList.Output()
 }

@@ -6,32 +6,15 @@ import (
 
 	"github.com/bartlettc22/image-inquisitor/internal/reports"
 	exporttypes "github.com/bartlettc22/image-inquisitor/internal/sources/export/types"
+	sourcetypes "github.com/bartlettc22/image-inquisitor/internal/sources/types"
 	log "github.com/sirupsen/logrus"
 )
-
-type ImageListSource string
-
-const (
-	ImageListSourceUnknown    ImageListSource = "unknown"
-	ImageListSourceKubernetes ImageListSource = "kubernetes"
-	ImageListSourceFile       ImageListSource = "file"
-	ImageListSourceGCS        ImageListSource = "gcs"
-)
-
-func (s ImageListSource) IsValid() bool {
-	switch s {
-	case ImageListSourceKubernetes, ImageListSourceFile, ImageListSourceGCS:
-		return true
-	default:
-		return false
-	}
-}
 
 type Config struct {
 	LogLevel                       string
 	LogJSON                        bool
 	ImageSourcesStr                string
-	ImageSources                   []ImageListSource
+	ImageSources                   []sourcetypes.ImageSourceType
 	ExportGCSBucket                string
 	ReportOutputsStr               string
 	ReportOutputs                  ReportOutputs
@@ -138,21 +121,21 @@ func LoadConfig() Config {
 
 	imageSources := strings.Split(config.ImageSourcesStr, ",")
 	for _, imgSource := range imageSources {
-		imageSource := ImageListSource(imgSource)
+		imageSource := sourcetypes.ImageSourceType(imgSource)
 		if !imageSource.IsValid() {
 			log.Fatalf("invalid value in --image-sources: %s", imageSource)
 		}
 		config.ImageSources = append(config.ImageSources, imageSource)
 		switch imageSource {
-		case ImageListSourceGCS:
+		case sourcetypes.ImageSourceTypeGCS:
 			if config.ExportGCSBucket == "" {
 				log.Fatal("gcs-bucket must be set")
 			}
-		case ImageListSourceFile:
+		case sourcetypes.ImageSourceTypeFile:
 			if config.ImageSourceFilePath == "" {
 				log.Fatalf("must specify 'image-source-file-path' parameter when 'image-sources=file'")
 			}
-		case ImageListSourceKubernetes:
+		case sourcetypes.ImageSourceTypeKubernetes:
 		default:
 
 		}

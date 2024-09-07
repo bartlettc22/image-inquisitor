@@ -18,7 +18,7 @@ type Image struct {
 }
 
 // List lists the images as a slice of strings
-func (il ImagesList) List() []string {
+func (il ImagesList) AsSlice() []string {
 	list := []string{}
 	for image := range il {
 		list = append(list, image)

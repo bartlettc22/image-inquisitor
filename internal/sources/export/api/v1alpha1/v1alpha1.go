@@ -19,5 +19,5 @@ type ExportImageList struct {
 }
 
 type ExportImage struct {
-	Sources map[sourcetypes.ImageSource]interface{}
+	Sources map[sourcetypes.ImageSourceType]interface{}
 }
