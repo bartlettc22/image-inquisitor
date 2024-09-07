@@ -1,17 +1,20 @@
 package main
 
 import (
-	"bufio"
+	"context"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/bartlettc22/image-inquisitor/internal/config"
 	"github.com/bartlettc22/image-inquisitor/internal/imageUtils"
 	"github.com/bartlettc22/image-inquisitor/internal/kubernetes"
 	"github.com/bartlettc22/image-inquisitor/internal/registries/querier"
 	"github.com/bartlettc22/image-inquisitor/internal/reports"
+	"github.com/bartlettc22/image-inquisitor/internal/sources"
+	"github.com/bartlettc22/image-inquisitor/internal/sources/export"
+	sourcetypes "github.com/bartlettc22/image-inquisitor/internal/sources/types"
 	"github.com/bartlettc22/image-inquisitor/internal/trivy"
 	log "github.com/sirupsen/logrus"
 )
@@ -19,13 +22,14 @@ import (
 func main() {
 
 	start := time.Now()
+	ctx := context.Background()
 
-	config := loadConfig()
+	cfg := config.LoadConfig()
 
-	if config.LogJSON {
+	if cfg.LogJSON {
 		log.SetFormatter(&log.JSONFormatter{})
 	}
-	logLevel, err := log.ParseLevel(config.LogLevel)
+	logLevel, err := log.ParseLevel(cfg.LogLevel)
 	if err != nil {
 		log.Fatalf("failed to parse log level: %v", err)
 	}
@@ -33,82 +37,83 @@ func main() {
 
 	masterSummaryReportList := reports.NewSummaryReportList(start)
 	masterImageReportList := reports.NewImageReportList(start)
+	exporter := export.NewExporter(&export.ExporterConfig{
+		ExternalID:   cfg.ExportExternalID,
+		Destinations: cfg.ExportDestinations,
+		FilePath:     cfg.ExportFilePath,
+		GCSBucket:    cfg.ExportGCSBucket,
+	})
 
 	excludeRegistriesMap := make(map[string]struct{})
-	for _, reg := range config.ExcludeImageRegistries {
+	for _, reg := range cfg.ExcludeImageRegistries {
 		excludeRegistriesMap[reg] = struct{}{}
 	}
 
 	masterImagesList := make(imageUtils.ImagesList)
 
-	switch config.ImageSource {
-	case ImageListSourceKubernetes:
-		k, err := kubernetes.NewKubernetes(&kubernetes.KubernetesConfig{
-			IncludeNamespaces: config.IncludeKubernetesNamespaces,
-			ExcludeNamespaces: config.ExcludeKubernetesNamespaces,
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-		kubeReport, err := k.GetReport()
-		if err != nil {
-			log.Fatalf("error listing images from Kubernetes: %s", err.Error())
-		}
-
-		for image, kubeReport := range kubeReport {
-
-			parsedImage, err := imageUtils.ParseImage(image)
+	for _, source := range cfg.ImageSources {
+		switch source {
+		case config.ImageListSourceKubernetes:
+			k, err := kubernetes.NewKubernetes(&kubernetes.KubernetesConfig{
+				IncludeNamespaces: cfg.IncludeKubernetesNamespaces,
+				ExcludeNamespaces: cfg.ExcludeKubernetesNamespaces,
+			})
 			if err != nil {
-				log.Errorf("error parsing image %s, skipping: %v", image, err)
-				continue
+				log.Fatal(err)
+			}
+			kubeReport, err := k.GetReport()
+			if err != nil {
+				log.Fatalf("error listing images from Kubernetes: %s", err.Error())
 			}
 
-			// if excluded, ignore
-			if _, ok := excludeRegistriesMap[parsedImage.Registry]; ok {
-				continue
-			}
+			for image, kubeReport := range kubeReport {
 
-			masterImagesList[parsedImage.FullName(false)] = parsedImage
-
-			if config.ReportOutputs.Contains(reports.ReportTypeImageKubernetes) {
-				masterImageReportList.AddImageReport(reports.ReportTypeImageKubernetes, image, kubeReport)
-			}
-		}
-	case ImageListSourceFile:
-		file, err := os.Open(config.ImageSourceFilePath)
-		if err != nil {
-			log.Fatalf("error opening file '%s': %v", config.ImageSourceFilePath, err)
-		}
-		defer file.Close()
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			image := scanner.Text()
-			if strings.TrimSpace(image) != "" {
 				parsedImage, err := imageUtils.ParseImage(image)
 				if err != nil {
 					log.Errorf("error parsing image %s, skipping: %v", image, err)
 					continue
 				}
 
+				// if excluded, ignore
 				if _, ok := excludeRegistriesMap[parsedImage.Registry]; ok {
 					continue
 				}
 
 				masterImagesList[parsedImage.FullName(false)] = parsedImage
+
+				if cfg.ReportOutputs.Contains(reports.ReportTypeImageKubernetes) {
+					masterImageReportList.AddImageReport(reports.ReportTypeImageKubernetes, image, kubeReport)
+				}
 			}
+			exporter.AddReport(sourcetypes.ImageSourceKubernetes, &kubeReport)
+		case config.ImageListSourceFile:
+			fileSource := sources.NewFileSource(&sources.FileSourceConfig{
+				SourceFilePath:    cfg.ImageSourceFilePath,
+				ExcludeRegistries: excludeRegistriesMap,
+			})
+			fileSourceReport, err := fileSource.GetReport(ctx)
+			if err != nil {
+				log.Fatalf("%v", err)
+			}
+			for parsedImageName, parsedImage := range fileSourceReport.Images() {
+				masterImagesList[parsedImageName] = parsedImage
+			}
+			exporter.AddReport(sourcetypes.ImageSourceFile, fileSourceReport)
+		default:
+			log.Fatalf("image source unknown")
 		}
-		if err := scanner.Err(); err != nil {
-			log.Fatalf("error reading file: '%s': %v", config.ImageSourceFilePath, err)
-		}
-	default:
-		log.Fatalf("image source unknown")
+	}
+
+	err = exporter.Export(ctx)
+	if err != nil {
+		log.Errorf("%v", err)
 	}
 
 	wg := &sync.WaitGroup{}
 	mu := &sync.Mutex{}
 
-	if config.ReportOutputs.Contains(reports.ReportTypeImageRegistry) ||
-		config.ReportOutputs.Contains(reports.ReportTypeSummaryRegistry) {
+	if cfg.ReportOutputs.Contains(reports.ReportTypeImageRegistry) ||
+		cfg.ReportOutputs.Contains(reports.ReportTypeSummaryRegistry) {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
@@ -126,7 +131,7 @@ func main() {
 		}(wg)
 	}
 
-	if config.ReportOutputs.Contains(reports.ReportTypeImageVulnerabilities) {
+	if cfg.ReportOutputs.Contains(reports.ReportTypeImageVulnerabilities) {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()

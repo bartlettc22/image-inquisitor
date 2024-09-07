@@ -56,3 +56,11 @@ type KubernetesResource struct {
 	Container string `json:"container"`
 	IsInit    bool   `json:"isInit"`
 }
+
+func (k *KubernetesReport) Export() map[string]interface{} {
+	exportableReport := make(map[string]interface{})
+	for image, report := range *k {
+		exportableReport[image] = report
+	}
+	return exportableReport
+}

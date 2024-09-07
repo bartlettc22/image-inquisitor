@@ -1,10 +1,11 @@
-package main
+package config
 
 import (
 	"flag"
 	"strings"
 
 	"github.com/bartlettc22/image-inquisitor/internal/reports"
+	exporttypes "github.com/bartlettc22/image-inquisitor/internal/sources/export/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -14,11 +15,12 @@ const (
 	ImageListSourceUnknown    ImageListSource = "unknown"
 	ImageListSourceKubernetes ImageListSource = "kubernetes"
 	ImageListSourceFile       ImageListSource = "file"
+	ImageListSourceGCS        ImageListSource = "gcs"
 )
 
 func (s ImageListSource) IsValid() bool {
 	switch s {
-	case ImageListSourceKubernetes, ImageListSourceFile:
+	case ImageListSourceKubernetes, ImageListSourceFile, ImageListSourceGCS:
 		return true
 	default:
 		return false
@@ -28,15 +30,15 @@ func (s ImageListSource) IsValid() bool {
 type Config struct {
 	LogLevel                       string
 	LogJSON                        bool
-	ImageSourceStr                 string
-	ImageSource                    ImageListSource
 	ImageSourcesStr                string
-	ImageSources                   []string
-	GcsBucket                      string
+	ImageSources                   []ImageListSource
+	ExportGCSBucket                string
 	ReportOutputsStr               string
 	ReportOutputs                  ReportOutputs
-	ReportOutputDestinationsStr    string
-	ReportOutputDestinations       []string
+	ExportDestinationsStr          string
+	ExportDestinations             exporttypes.ExportDestinationList
+	ExportExternalID               string
+	ExportFilePath                 string
 	ImageSourceFilePath            string
 	RunTrivy                       bool
 	RunRegistry                    bool
@@ -59,7 +61,7 @@ func (r ReportOutputs) Contains(reportType reports.ReportType) bool {
 	return false
 }
 
-func loadConfig() Config {
+func LoadConfig() Config {
 	config := Config{}
 
 	flag.StringVar(&config.LogLevel,
@@ -72,18 +74,33 @@ func loadConfig() Config {
 		true,
 		"Whether to log JSON output")
 
-	flag.StringVar(&config.ImageSourceStr,
-		"image-source",
-		"kubernetes",
-		"Source of images to scan.  Can be one of 'kubernetes' or 'file'. If 'file', must specify 'image-source-file-path' parameter.")
-
 	flag.StringVar(&config.ImageSourcesStr,
 		"image-sources",
 		"kubernetes",
 		"Comma-separated list of image sources to scan.  Can be one or more of of [kubernetes, file, gcs]. If 'file', must specify 'image-source-file-path' parameter.  If 'gcs', must specify 'gcs-*' parameters")
 
-	flag.StringVar(&config.GcsBucket,
-		"gcs-bucket",
+	flag.StringVar(&config.ImageSourceFilePath,
+		"image-source-file-path",
+		"",
+		"Path of file containing list of images to scan")
+
+	flag.StringVar(&config.ExportDestinationsStr,
+		"export-destinations",
+		"",
+		"Comma-separated list of output sources.  Can be one or more of [file, gcs]. If 'gcs', must specify 'gcs-*' parameters")
+
+	flag.StringVar(&config.ExportExternalID,
+		"export-external-id",
+		"",
+		"Identifier for the export.  Used for filenames and unique identifier on import")
+
+	flag.StringVar(&config.ExportFilePath,
+		"export-file-path",
+		"",
+		"Path of directory to dump the export")
+
+	flag.StringVar(&config.ExportGCSBucket,
+		"export-gcs-bucket",
 		"",
 		"GCS bucket to pull source images from")
 
@@ -91,16 +108,6 @@ func loadConfig() Config {
 		"report-outputs",
 		"summary,summaryImageCombined,summaryRegistry,imageSummary,imageRegistry,imageVulnerabilities,imageKubernetes",
 		"Comma-separated list of reports to output.  Can be one or more of [summary, summaryImageCombined, summaryRegistry, imageSummary, imageRegistry, imageVulnerabilities, imageKubernetes]")
-
-	flag.StringVar(&config.ReportOutputDestinationsStr,
-		"report-output-destinations",
-		"stdout",
-		"Comma-separated list of output sources.  Can be one or more of [gcs, stdout]")
-
-	flag.StringVar(&config.ImageSourceFilePath,
-		"image-source-file-path",
-		"",
-		"Path of file containing list of images to scan")
 
 	flag.StringVar(&config.IncludeKubernetesNamespacesStr,
 		"include-kubernetes-namespaces",
@@ -117,18 +124,6 @@ func loadConfig() Config {
 
 	flag.Parse()
 
-	config.ImageSource = ImageListSource(config.ImageSourceStr)
-
-	if !config.ImageSource.IsValid() {
-		log.Fatalf("'image-source' parameter invalid. run with '--help' to list valid values")
-	}
-
-	if config.ImageSource == ImageListSourceFile {
-		if config.ImageSourceFilePath == "" {
-			log.Fatalf("must specify 'image-source-file-path' parameter when 'image-source=file'")
-		}
-	}
-
 	if config.IncludeKubernetesNamespacesStr != "" {
 		config.IncludeKubernetesNamespaces = strings.Split(config.IncludeKubernetesNamespacesStr, ",")
 	}
@@ -141,7 +136,28 @@ func loadConfig() Config {
 		config.ExcludeImageRegistries = strings.Split(config.ExcludeImageRegistriesStr, ",")
 	}
 
-	config.ImageSources = strings.Split(config.ImageSourcesStr, ",")
+	imageSources := strings.Split(config.ImageSourcesStr, ",")
+	for _, imgSource := range imageSources {
+		imageSource := ImageListSource(imgSource)
+		if !imageSource.IsValid() {
+			log.Fatalf("invalid value in --image-sources: %s", imageSource)
+		}
+		config.ImageSources = append(config.ImageSources, imageSource)
+		switch imageSource {
+		case ImageListSourceGCS:
+			if config.ExportGCSBucket == "" {
+				log.Fatal("gcs-bucket must be set")
+			}
+		case ImageListSourceFile:
+			if config.ImageSourceFilePath == "" {
+				log.Fatalf("must specify 'image-source-file-path' parameter when 'image-sources=file'")
+			}
+		case ImageListSourceKubernetes:
+		default:
+
+		}
+	}
+
 	reportOutputsList := strings.Split(config.ReportOutputsStr, ",")
 	for _, r := range reportOutputsList {
 		if reports.IsValidReportType(r) {
@@ -151,13 +167,28 @@ func loadConfig() Config {
 		}
 	}
 
-	config.ReportOutputDestinations = strings.Split(config.ReportOutputDestinationsStr, ",")
+	config.ExportDestinations = make(exporttypes.ExportDestinationList)
+	if config.ExportDestinationsStr != "" {
 
-	for _, d := range config.ReportOutputDestinations {
-		switch d {
-		case "gcs":
-			if config.GcsBucket == "" {
+		if config.ExportExternalID == "" {
+			log.Fatal("when exporting, export-external-id must be set")
+		}
+
+		exportDestinations := strings.Split(config.ExportDestinationsStr, ",")
+		for _, dest := range exportDestinations {
+			err := config.ExportDestinations.Add(dest)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		if config.ExportDestinations.Contains(exporttypes.ExportDestinationGCS) {
+			if config.ExportGCSBucket == "" {
 				log.Fatal("gcs-bucket must be set")
+			}
+		}
+		if config.ExportDestinations.Contains(exporttypes.ExportDestinationFile) {
+			if config.ExportFilePath == "" {
+				log.Fatal("export file path must be set")
 			}
 		}
 	}
