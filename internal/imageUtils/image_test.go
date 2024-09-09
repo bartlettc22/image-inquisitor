@@ -111,10 +111,10 @@ func TestParseImage(t *testing.T) {
 			if result.Digest != tc.expected.Digest {
 				t.Errorf("digest for `%s` not correct; want `%s`, got `%s`", tc.image, tc.expected.Digest, result.Digest)
 			}
-			if fullname := result.FullName(false); fullname != tc.expectedFullName {
+			if fullname := result.FullyQualifiedName(false); fullname != tc.expectedFullName {
 				t.Errorf("Full name for `%s` not correct; want `%s`, got `%s`", tc.image, tc.expectedFullName, fullname)
 			}
-			if fullname := result.FullName(true); fullname != tc.expectedFullNameWithDigest {
+			if fullname := result.FullyQualifiedName(true); fullname != tc.expectedFullNameWithDigest {
 				t.Errorf("Full name (with digest) for `%s` not correct; want `%s`, got `%s`", tc.image, tc.expectedFullNameWithDigest, fullname)
 			}
 		}

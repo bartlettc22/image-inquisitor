@@ -11,7 +11,8 @@ import (
 	"github.com/bartlettc22/image-inquisitor/internal/registries/querier"
 	"github.com/bartlettc22/image-inquisitor/internal/reports"
 	"github.com/bartlettc22/image-inquisitor/internal/sources"
-	"github.com/bartlettc22/image-inquisitor/internal/sources/export"
+	exportsources "github.com/bartlettc22/image-inquisitor/internal/sources/export"
+	importsources "github.com/bartlettc22/image-inquisitor/internal/sources/import"
 	"github.com/bartlettc22/image-inquisitor/internal/trivy"
 	log "github.com/sirupsen/logrus"
 )
@@ -32,53 +33,56 @@ func main() {
 	}
 	log.SetLevel(logLevel)
 
-	masterSummaryReportList := reports.NewSummaryReportList(start)
-	masterImageReportList := reports.NewImageReportList(start)
-
-	excludeRegistriesMap := make(map[string]struct{})
-	for _, reg := range cfg.ExcludeImageRegistries {
-		excludeRegistriesMap[reg] = struct{}{}
-	}
-
-	sourceImages, err := sources.FetchImages(ctx, &sources.ImageSourcesConfig{
-		ImageSourceTypes: cfg.ImageSources,
+	inventory, err := sources.GetInventoryFromSources(ctx, &sources.ImageSourcesConfig{
+		SourceID:               cfg.SourceID,
+		ImageSourceTypes:       cfg.ImageSources,
+		ExcludeImageRegistries: cfg.ExcludeImageRegistries,
 		KubernetesSourceConfig: &sources.KubernetesSourceConfig{
-			IncludeNamespaces: cfg.IncludeKubernetesNamespaces,
-			ExcludeNamespaces: cfg.ExcludeKubernetesNamespaces,
-			ExcludeRegistries: excludeRegistriesMap,
+			IncludeNamespaces: cfg.KubernetesSourceIncludeNamespaces,
+			ExcludeNamespaces: cfg.KubernetesSourceExcludeNamespaces,
 		},
 		FileSourceConfig: &sources.FileSourceConfig{
-			SourceFilePath:    cfg.ImageSourceFilePath,
-			ExcludeRegistries: excludeRegistriesMap,
+			SourceFilePath: cfg.ImageSourcesFilePath,
+		},
+		ImportSourcesConfig: &importsources.ImportSourcesConfig{
+			ImportSourcesFrom:             cfg.ImportSourcesFrom,
+			ImportSourcesFilePath:         cfg.ImportSourcesFilePath,
+			ImportSourcesGCSBucket:        cfg.ImportSourcesGCSBucket,
+			ImportSourcesGCSDirectoryPath: cfg.ImportSourcesGCSDirectoryPath,
 		},
 	})
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	if len(cfg.ExportDestinations) > 0 {
-		err := sourceImages.Export(ctx, &export.ExporterConfig{
-			ExternalID:   cfg.ExportExternalID,
-			Destinations: cfg.ExportDestinations,
-			FilePath:     cfg.ExportFilePath,
-			GCSBucket:    cfg.ExportGCSBucket,
+	if len(cfg.ExportSourcesDestinations) > 0 {
+		log.Infof("exporting primary sources to: %s", cfg.ExportSourcesDestinations.String())
+		err := inventory.Export(ctx, &exportsources.ExporterConfig{
+			SourceID:         cfg.SourceID,
+			Destinations:     cfg.ExportSourcesDestinations,
+			FilePath:         cfg.ExportSourcesFilePath,
+			GCSBucket:        cfg.ExportSourcesGCSBucket,
+			GCSDirectoryPath: cfg.ExportSourcesGCSDirectoryPath,
 		})
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
 	}
 
-	if cfg.ReportOutputs.Contains(reports.ReportTypeImageKubernetes) {
-		kubernetesSourceReport, err := sourceImages.GetKubernetesSourceReports(ctx)
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-		for image, kubeReport := range kubernetesSourceReport.KubeReports() {
-			masterImageReportList.AddImageReport(reports.ReportTypeImageKubernetes, image, kubeReport)
-		}
-	}
+	// if cfg.ReportOutputs.Contains(reports.ReportTypeImageKubernetes) {
+	// 	kubernetesSourceReport, err := inventory.GetKubernetesSourceReports(ctx)
+	// 	if err != nil {
+	// 		log.Fatalf("%v", err)
+	// 	}
+	// 	for image, kubeReport := range kubernetesSourceReport.KubeReports() {
+	// 		masterImageReportList.AddImageReport(reports.ReportTypeImageKubernetes, image, kubeReport)
+	// 	}
+	// }
 
 	wg := &sync.WaitGroup{}
 	mu := &sync.Mutex{}
+
+	masterSummaryReportList := reports.NewSummaryReportList(start)
+	masterImageReportList := reports.NewImageReportList(start)
 
 	if cfg.ReportOutputs.Contains(reports.ReportTypeImageRegistry) ||
 		cfg.ReportOutputs.Contains(reports.ReportTypeSummaryRegistry) {
@@ -86,7 +90,7 @@ func main() {
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
 			registryQueries := querier.NewRegistryQuerier()
-			for imageFullName, image := range sourceImages.List() {
+			for imageFullName, image := range inventory.ImageComponents() {
 				registryReport, err := registryQueries.FetchReport(image)
 				if err != nil {
 					log.Error(err)
@@ -103,7 +107,7 @@ func main() {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
-			trivyReport, err := GetTrivyReport(sourceImages.List().AsSlice())
+			trivyReport, err := GetTrivyReport(inventory.ImagesAsSlice())
 			if err != nil {
 				log.Error(err)
 				return
@@ -118,9 +122,13 @@ func main() {
 	}
 	wg.Wait()
 
-	masterSummaryReportList.GenerateSummaryReports(sourceImages.List(), masterImageReportList)
-	masterSummaryReportList.Output()
-	masterImageReportList.Output()
+	if cfg.ReportOutputs.Contains(reports.ReportTypeImageSummary) {
+		masterSummaryReportList.GenerateSummaryReports(inventory.ImageComponents(), masterImageReportList)
+		masterSummaryReportList.Output()
+		masterImageReportList.Output()
+	}
+
+	log.Infof("done")
 }
 
 func GetTrivyReport(images []string) (trivy.TrivyReport, error) {

@@ -26,8 +26,8 @@ func (il ImagesList) AsSlice() []string {
 	return list
 }
 
-// FullName returns the fully qualified name
-func (img Image) FullName(digest bool) string {
+// FullyQualifiedName returns the fully qualified image name
+func (img Image) FullyQualifiedName(digest bool) string {
 	joinedPath := path.Join(img.Registry, img.Owner, img.Repository)
 	fullName := fmt.Sprintf("%s:%s", joinedPath, img.Tag)
 	if digest && img.Digest != "" {

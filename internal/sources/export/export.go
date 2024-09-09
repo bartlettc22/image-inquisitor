@@ -1,4 +1,4 @@
-package export
+package exportsources
 
 import (
 	"context"
@@ -13,52 +13,42 @@ import (
 
 type Exporter struct {
 	*ExporterConfig
-	reports map[sourcetypes.ImageSourceType]exporttypes.ExportableReport
+
+	images map[string]*exportapiv1alpha1.ExportImage
 }
 
 type ExporterConfig struct {
-	ExternalID   string
-	Destinations exporttypes.ExportDestinationList
-	FilePath     string
-	GCSBucket    string
+	SourceID         string
+	Destinations     exporttypes.ExportDestinationList
+	FilePath         string
+	GCSBucket        string
+	GCSDirectoryPath string
 }
 
 func NewExporter(config *ExporterConfig) *Exporter {
 	return &Exporter{
 		ExporterConfig: config,
-		reports:        make(map[sourcetypes.ImageSourceType]exporttypes.ExportableReport),
+		images:         make(map[string]*exportapiv1alpha1.ExportImage),
 	}
 }
 
-func (e *Exporter) AddReport(sourceType sourcetypes.ImageSourceType, report exporttypes.ExportableReport) {
-	e.reports[sourceType] = report
+func (e *Exporter) AddImageSourceDetails(fullyQualifiedImageName string, sourcesByType map[sourcetypes.ImageSourceType]interface{}) {
+	e.images[fullyQualifiedImageName] = &exportapiv1alpha1.ExportImage{
+		Sources: sourcesByType,
+	}
 }
 
 func (e *Exporter) Export(ctx context.Context) error {
-
-	spec := exportapiv1alpha1.ExportImageList{
-		Images: make(map[string]*exportapiv1alpha1.ExportImage),
-	}
-
-	for sourceType, report := range e.reports {
-		for image, sourceReport := range report.Export() {
-			if _, ok := spec.Images[image]; !ok {
-				spec.Images[image] = &exportapiv1alpha1.ExportImage{
-					Sources: make(map[sourcetypes.ImageSourceType]interface{}),
-				}
-			}
-			spec.Images[image].Sources[sourceType] = sourceReport
-		}
-	}
-
 	report := &exportapiv1alpha1.ExportReport{
 		ExportMetadata: exportapimetadata.ExportMetadata{
-			Version:    exportapiv1alpha1.APIVersion,
-			Kind:       "ExportReport",
-			Created:    time.Now(),
-			ExternalID: e.ExternalID,
+			Version:  exportapiv1alpha1.APIVersion,
+			Kind:     exportapimetadata.Kind,
+			Created:  time.Now(),
+			SourceID: e.SourceID,
 		},
-		Spec: spec,
+		Spec: exportapiv1alpha1.ExportImageList{
+			Images: e.images,
+		},
 	}
 
 	errList := []error{}
@@ -76,5 +66,5 @@ func (e *Exporter) Export(ctx context.Context) error {
 }
 
 func (e *Exporter) exportfileName() string {
-	return e.ExternalID + ".yaml"
+	return e.SourceID + ".yaml"
 }

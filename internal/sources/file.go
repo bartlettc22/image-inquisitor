@@ -7,16 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bartlettc22/image-inquisitor/internal/imageUtils"
-	log "github.com/sirupsen/logrus"
+	"github.com/bartlettc22/image-inquisitor/internal/sources/types"
 )
 
-type FileSourceReport struct {
-	sourceFilePath string
-	imagesList     imageUtils.ImagesList
-}
-
-type FileSourceExportReport struct {
+type FileSourceDetails struct {
 	FilePath string `yaml:"filePath"`
 }
 
@@ -25,8 +19,7 @@ type FileSource struct {
 }
 
 type FileSourceConfig struct {
-	SourceFilePath    string
-	ExcludeRegistries map[string]struct{}
+	SourceFilePath string
 }
 
 func NewFileSource(config *FileSourceConfig) *FileSource {
@@ -35,12 +28,9 @@ func NewFileSource(config *FileSourceConfig) *FileSource {
 	}
 }
 
-func (s *FileSource) GetReport(ctx context.Context) (*FileSourceReport, error) {
+func (s *FileSource) GetReport(ctx context.Context) (map[string]*types.ImageSourceDetails, error) {
 
-	fileSourceReport := &FileSourceReport{
-		sourceFilePath: s.SourceFilePath,
-		imagesList:     make(imageUtils.ImagesList),
-	}
+	details := make(map[string]*types.ImageSourceDetails)
 
 	file, err := os.Open(s.SourceFilePath)
 	if err != nil {
@@ -50,38 +40,20 @@ func (s *FileSource) GetReport(ctx context.Context) (*FileSourceReport, error) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		image := scanner.Text()
-		if strings.TrimSpace(image) != "" {
-			parsedImage, err := imageUtils.ParseImage(image)
-			if err != nil {
-				log.Errorf("error parsing image %s, skipping: %v", image, err)
-				continue
-			}
+		if trimmedImage := strings.TrimSpace(image); trimmedImage != "" {
 
-			if s.ExcludeRegistries != nil {
-				if _, ok := s.ExcludeRegistries[parsedImage.Registry]; ok {
-					continue
-				}
+			details[trimmedImage] = &types.ImageSourceDetails{
+				SourcesByType: map[types.ImageSourceType]interface{}{
+					types.ImageSourceTypeFile: &FileSourceDetails{
+						FilePath: s.SourceFilePath,
+					},
+				},
 			}
-			fileSourceReport.imagesList[parsedImage.FullName(false)] = parsedImage
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading file: '%s': %v", s.SourceFilePath, err)
 	}
 
-	return fileSourceReport, nil
-}
-
-func (s *FileSourceReport) Images() imageUtils.ImagesList {
-	return s.imagesList
-}
-
-func (s *FileSourceReport) Export() map[string]interface{} {
-	exportReport := make(map[string]interface{})
-	for parsedImageName := range s.imagesList {
-		exportReport[parsedImageName] = &FileSourceExportReport{
-			FilePath: s.sourceFilePath,
-		}
-	}
-	return exportReport
+	return details, nil
 }

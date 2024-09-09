@@ -6,7 +6,7 @@ import (
 
 	"github.com/bartlettc22/image-inquisitor/internal/imageUtils"
 	"github.com/bartlettc22/image-inquisitor/internal/kubernetes"
-	log "github.com/sirupsen/logrus"
+	"github.com/bartlettc22/image-inquisitor/internal/sources/types"
 )
 
 type KubernetesSource struct {
@@ -17,7 +17,6 @@ type KubernetesSource struct {
 type KubernetesSourceConfig struct {
 	IncludeNamespaces []string
 	ExcludeNamespaces []string
-	ExcludeRegistries map[string]struct{}
 }
 
 type KubernetesSourceReport struct {
@@ -31,7 +30,7 @@ func NewKubernetesSource(config *KubernetesSourceConfig) *KubernetesSource {
 	}
 }
 
-func (s *KubernetesSource) GetReport(ctx context.Context) (*KubernetesSourceReport, error) {
+func (s *KubernetesSource) GetReport(ctx context.Context) (map[string]*types.ImageSourceDetails, error) {
 
 	var err error
 
@@ -45,10 +44,7 @@ func (s *KubernetesSource) GetReport(ctx context.Context) (*KubernetesSourceRepo
 		}
 	}
 
-	kubernetesSourceReport := &KubernetesSourceReport{
-		imageReports: make(map[string]*kubernetes.KubernetesImageReport),
-		imagesList:   make(imageUtils.ImagesList),
-	}
+	details := make(map[string]*types.ImageSourceDetails)
 
 	kubeReport, err := s.client.GetReport()
 	if err != nil {
@@ -57,21 +53,14 @@ func (s *KubernetesSource) GetReport(ctx context.Context) (*KubernetesSourceRepo
 
 	for image, kubeImageReport := range kubeReport {
 
-		parsedImage, err := imageUtils.ParseImage(image)
-		if err != nil {
-			log.Errorf("error parsing image %s, skipping: %v", image, err)
-			continue
+		details[image] = &types.ImageSourceDetails{
+			SourcesByType: map[types.ImageSourceType]interface{}{
+				types.ImageSourceTypeKubernetes: kubeImageReport,
+			},
 		}
-
-		if _, ok := s.ExcludeRegistries[parsedImage.Registry]; ok {
-			continue
-		}
-
-		kubernetesSourceReport.imageReports[parsedImage.FullName(false)] = kubeImageReport
-		kubernetesSourceReport.imagesList[parsedImage.FullName(false)] = parsedImage
 	}
 
-	return kubernetesSourceReport, nil
+	return details, nil
 }
 
 func (s *KubernetesSourceReport) KubeReports() map[string]*kubernetes.KubernetesImageReport {

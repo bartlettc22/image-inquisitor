@@ -4,30 +4,28 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bartlettc22/image-inquisitor/internal/imageUtils"
-	"github.com/bartlettc22/image-inquisitor/internal/sources/export"
-	exporttypes "github.com/bartlettc22/image-inquisitor/internal/sources/export/types"
+	importsources "github.com/bartlettc22/image-inquisitor/internal/sources/import"
 	"github.com/bartlettc22/image-inquisitor/internal/sources/types"
 )
 
-type SourceImages struct {
-	imageList     imageUtils.ImagesList
-	sourceReports map[types.ImageSourceType]interface{}
-}
-
 type ImageSourcesConfig struct {
+	SourceID               string
 	ImageSourceTypes       []types.ImageSourceType
 	KubernetesSourceConfig *KubernetesSourceConfig
 	FileSourceConfig       *FileSourceConfig
+	ImportSourcesConfig    *importsources.ImportSourcesConfig
+	ExcludeImageRegistries map[string]struct{}
 }
 
-func FetchImages(ctx context.Context, config *ImageSourcesConfig) (*SourceImages, error) {
+func GetInventoryFromSources(ctx context.Context, config *ImageSourcesConfig) (*ImageInventory, error) {
 
-	sourceImages := &SourceImages{
-		imageList:     make(imageUtils.ImagesList),
-		sourceReports: make(map[types.ImageSourceType]interface{}),
-	}
+	inventory := NewImageInventory(&ImageInventoryConfig{
+		ExcludeRegistries: config.ExcludeImageRegistries,
+	})
 
+	// Collect primary source information before we do the import import.
+	// We do this in case the same primary sourceID exists in data we try to import
+	// as we will keep the first sourceID info (more update-to-date)
 	for _, sourceType := range config.ImageSourceTypes {
 		switch sourceType {
 		case types.ImageSourceTypeKubernetes:
@@ -36,54 +34,28 @@ func FetchImages(ctx context.Context, config *ImageSourcesConfig) (*SourceImages
 			if err != nil {
 				return nil, err
 			}
-
-			for parsedImageName, parsedImage := range kubernetesSourceReport.Images() {
-				sourceImages.imageList[parsedImageName] = parsedImage
-			}
-			sourceImages.sourceReports[sourceType] = kubernetesSourceReport
+			inventory.AddImageSourceDetails(config.SourceID, kubernetesSourceReport)
 		case types.ImageSourceTypeFile:
 			fileSource := NewFileSource(config.FileSourceConfig)
 			fileSourceReport, err := fileSource.GetReport(ctx)
 			if err != nil {
 				return nil, err
 			}
-
-			for parsedImageName, parsedImage := range fileSourceReport.Images() {
-				sourceImages.imageList[parsedImageName] = parsedImage
-			}
-			sourceImages.sourceReports[sourceType] = fileSourceReport
+			inventory.AddImageSourceDetails(config.SourceID, fileSourceReport)
 		default:
 			return nil, fmt.Errorf("image source unknown")
 		}
 	}
 
-	return sourceImages, nil
-}
-
-func (s *SourceImages) List() imageUtils.ImagesList {
-	return s.imageList
-}
-
-func (s *SourceImages) GetKubernetesSourceReports(ctx context.Context) (*KubernetesSourceReport, error) {
-	if sourceReport, ok := s.sourceReports[types.ImageSourceTypeKubernetes]; ok {
-		kubernetesSource, ok := sourceReport.(*KubernetesSourceReport)
-		if !ok {
-			return nil, fmt.Errorf("report type is not of the right type: %s", types.ImageSourceTypeKubernetes.String())
+	if config.ImportSourcesConfig != nil {
+		importedInventory, err := importsources.ImportSourcesInventory(ctx, config.ImportSourcesConfig)
+		if err != nil {
+			return nil, err
 		}
-		return kubernetesSource, nil
-	}
-	return nil, fmt.Errorf("source report not found: %s", types.ImageSourceTypeKubernetes.String())
-}
-
-func (s *SourceImages) Export(ctx context.Context, exporterConfig *export.ExporterConfig) error {
-	exporter := export.NewExporter(exporterConfig)
-	for sourceType, sourceReport := range s.sourceReports {
-		exportableReport, ok := sourceReport.(exporttypes.ExportableReport)
-		if !ok {
-			return fmt.Errorf("report type is not exportable: %s", sourceType.String())
+		for sourceID, sourceDetailsByImage := range importedInventory {
+			inventory.AddImageSourceDetails(sourceID, sourceDetailsByImage)
 		}
-		exporter.AddReport(sourceType, exportableReport)
 	}
 
-	return exporter.Export(ctx)
+	return inventory, nil
 }

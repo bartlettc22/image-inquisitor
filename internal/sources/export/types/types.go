@@ -1,6 +1,9 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type ExportableReport interface {
 	Export() map[string]interface{}
@@ -28,6 +31,14 @@ func (e ExportDestinationList) Add(dest string) error {
 	}
 	e[dest] = ExportDestination(dest)
 	return nil
+}
+
+func (e ExportDestinationList) String() string {
+	dests := []string{}
+	for _, dest := range e {
+		dests = append(dests, dest.String())
+	}
+	return strings.Join(dests, ",")
 }
 
 func (e ExportDestinationList) Contains(find ExportDestination) bool {

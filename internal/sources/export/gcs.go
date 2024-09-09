@@ -1,10 +1,11 @@
-package export
+package exportsources
 
 import (
 	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"path"
 
 	"cloud.google.com/go/storage"
 	exportapiv1alpha1 "github.com/bartlettc22/image-inquisitor/internal/sources/export/api/v1alpha1"
@@ -20,7 +21,7 @@ func (e *Exporter) ExportGCS(ctx context.Context, report *exportapiv1alpha1.Expo
 	defer client.Close()
 
 	bucket := client.Bucket(e.ExporterConfig.GCSBucket)
-	wc := bucket.Object(e.exportfileName()).NewWriter(ctx)
+	wc := bucket.Object(path.Join(e.GCSDirectoryPath, e.exportfileName())).NewWriter(ctx)
 
 	yamlOut, err := yaml.Marshal(report)
 	if err != nil {

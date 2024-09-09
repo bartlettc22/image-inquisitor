@@ -1,4 +1,4 @@
-package export
+package exportsources
 
 import (
 	"context"
