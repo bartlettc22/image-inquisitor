@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/bartlettc22/image-inquisitor/internal/registries"
 )
 
@@ -17,7 +17,6 @@ func LatestSemanticVersion(versions []*registries.Tag) (*registries.Tag, error) 
 		// Parse each version string into a semver.Version
 		version, err := semver.NewVersion(v.Tag)
 		if err != nil {
-			//return "", fmt.Errorf("invalid version %s: %v", v, err)
 			continue
 		}
 
