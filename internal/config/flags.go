@@ -15,7 +15,7 @@ func SetSourceFlags(cmd *cobra.Command) {
 func SetRunFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolP("latest-semver-scan", "", true, "Scan image registry for latest semver tag")
 	cmd.PersistentFlags().BoolP("security-scan", "", true, "Whether to run security scan against images")
-	cmd.PersistentFlags().StringSliceP("reports", "", []string{"inventory"}, "List of reports to output.  Can be one or more of [inventory, summary, summaryImageCombined, summaryRegistry, imageSummary, imageRegistry, imageVulnerabilities, imageKubernetes]")
+	cmd.PersistentFlags().StringSliceP("reports", "", []string{"InventoryReport"}, "List of reports to output.  Can be one or more of [inventory, summary, summaryImageCombined, summaryRegistry, imageSummary, imageRegistry, imageVulnerabilities, imageKubernetes]")
 	cmd.PersistentFlags().StringSliceP("report-destinations", "", []string{"stdout"}, "Comma-separated list of output destinations.  Can be one or more of [stdout, file]. If 'file', must specify 'report-file-dir' parameter")
 	cmd.PersistentFlags().StringP("report-format", "", "json", "The desired output format.  One of json, yaml")
 	cmd.PersistentFlags().StringP("report-file-dir", "", "", "Path of directory to output the reports. Must be specified if 'report-destinations' contains 'file'")

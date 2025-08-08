@@ -3,9 +3,9 @@ package config
 import (
 	"fmt"
 
-	source "github.com/bartlettc22/image-inquisitor/internal/sourcex"
-	"github.com/bartlettc22/image-inquisitor/internal/sourcex/file"
-	"github.com/bartlettc22/image-inquisitor/internal/sourcex/kubernetes"
+	"github.com/bartlettc22/image-inquisitor/internal/source"
+	"github.com/bartlettc22/image-inquisitor/internal/source/file"
+	"github.com/bartlettc22/image-inquisitor/internal/source/kubernetes"
 	sourcesapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/sources"
 	"github.com/spf13/viper"
 )

@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/bartlettc22/image-inquisitor/internal/inventory/inventory"
+	"github.com/bartlettc22/image-inquisitor/internal/inventory"
 	"github.com/bartlettc22/image-inquisitor/internal/trivy"
 	"github.com/spf13/viper"
 )
