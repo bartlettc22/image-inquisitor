@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     GOARCH=amd64 \
     go build \
     -ldflags "-s -w -extldflags \"-static\"  -X 'main.version=${VERSION}'" \
-    -o /image-inquisitor \
+    -o /imginq \
     ./cmd
 
 RUN mkdir -p /data/tmp
@@ -56,12 +56,12 @@ RUN --mount=from=busybox:latest,src=/bin/,dst=/bin/ \
     mkdir -m 1755 /tmp && chown 10001:10001 /tmp && \
     mkdir -m 1755 /home && chown 10001:10001 /home
 
-COPY --from=trivy /usr/local/bin/trivy /bin/trivy
-COPY --from=builder /image-inquisitor /bin/image-inquisitor
+COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
+COPY --from=builder /imginq /bin/imginq
 ENV PATH=/bin
 
 # This needs to be the UID (vs. the user name) because Kubernetes will check to ensure this is not a root user
 # It can only do this if the UID is used so it can ensure that it is != 0 (root)
 USER 10001
 
-ENTRYPOINT ["image-inquisitor"]
+ENTRYPOINT ["imginq"]

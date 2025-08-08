@@ -3,35 +3,37 @@ package trivy
 import (
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	trivyTypes "github.com/aquasecurity/trivy/pkg/types"
 )
 
-type TrivyReport map[string]*TrivyImageReport
+// Severity is a string representation of a Trivy severity
+type Severity string
 
-type TrivyImageReport struct {
-	ImageCreated time.Time    `json:"imageCreated"`
-	ImageIssues  *ImageIssues `json:"imageIssues"`
-}
+const (
+	Critical Severity = "CRITICAL"
+	High     Severity = "HIGH"
+	Medium   Severity = "MEDIUM"
+	Low      Severity = "LOW"
+	Unknown  Severity = "UNKNOWN"
+)
 
+// ImageIssues is a list of issues found by Trivy
 type ImageIssues struct {
-	Total             *ImageIssueSeverity          `json:"total"`
-	Misconfigurations *ImageIssueMisconfigurations `json:"misconfigurations"`
-	Vulnerabilities   *ImageIssueVulnerabilities   `json:"vulnerabilities"`
-	Secrets           *ImageIssueSecrets           `json:"secrets"`
+	Misconfigurations []*ImageIssueMisconfiguration `json:"misconfigurations"`
+	Vulnerabilities   []*ImageIssueVulnerability    `json:"vulnerabilities"`
+	Secrets           []*ImageIssueSecret           `json:"secrets"`
 }
 
-type ImageIssueMisconfigurations struct {
-	ImageIssueSeverity
+// ImageIssueMisconfiguration is a misconfiguration issue found by Trivy
+type ImageIssueMisconfiguration struct {
+	Title    string   `json:"title"`
+	Severity Severity `json:"severity"`
 }
 
-type ImageIssueVulnerabilities struct {
-	ImageIssueSeverity
-	Vulnerabilities []*ImageIssueVulnerability `json:"vulnerabilities"`
-}
-
+// ImageIssueVulnerability is a vulnerability issue found by Trivy
 type ImageIssueVulnerability struct {
 	VulnerabilityID string     `json:"registry"`
-	Severity        string     `json:"severity"`
+	Severity        Severity   `json:"severity"`
 	PkgID           string     `json:"pkgID"`
 	PrimaryURL      string     `json:"primaryURL"`
 	Title           string     `json:"title"`
@@ -40,91 +42,61 @@ type ImageIssueVulnerability struct {
 	PublishedDate   *time.Time `json:"publishedDate"`
 }
 
-type ImageIssueSecrets struct {
-	ImageIssueSeverity
+// ImageIssueSecret is a secret issue found by Trivy
+type ImageIssueSecret struct {
+	Title    string   `json:"title"`
+	Severity Severity `json:"severity"`
 }
 
-type IssueWithSeverity interface {
-	AddSeverityUnknown()
-	AddSeverityLow()
-	AddSeverityMedium()
-	AddSeverityHigh()
-	AddSeverityCritical()
-}
-
-type ImageIssueSeverity struct {
-	Unknown  int `json:"unknown"`
-	Low      int `json:"low"`
-	Medium   int `json:"medium"`
-	High     int `json:"high"`
-	Critical int `json:"critical"`
-}
-
-func (iis *ImageIssueSeverity) AddSeverity(severity string) {
+func mustParseSeverity(severity string) Severity {
 	switch severity {
 	case "LOW":
-		iis.Low++
+		return Low
 	case "MEDIUM":
-		iis.Medium++
+		return Medium
 	case "HIGH":
-		iis.High++
+		return High
 	case "CRITICAL":
-		iis.Critical++
+		return Critical
 	default:
-		iis.Unknown++
+		return Unknown
 	}
 }
 
-func formatReport(runResults RunResults) TrivyReport {
-	trivyReport := make(TrivyReport)
-	for _, r := range runResults {
-		if r.Err != nil {
-			log.Errorf("%v; %s", r.Err, r.Output)
-			continue
-		}
-		if r.Report != nil {
-			issues := &ImageIssues{
-				Misconfigurations: &ImageIssueMisconfigurations{},
-				Vulnerabilities:   &ImageIssueVulnerabilities{},
-				Secrets:           &ImageIssueSecrets{},
-				Total:             &ImageIssueSeverity{},
+func parseReport(trivyReport *trivyTypes.Report) *ImageIssues {
+	issues := &ImageIssues{}
+	if trivyReport != nil {
+		for _, vulnResults := range trivyReport.Results {
+			for _, misconfiguration := range vulnResults.Misconfigurations {
+				issues.Misconfigurations = append(issues.Misconfigurations, &ImageIssueMisconfiguration{
+					Title:    misconfiguration.Title,
+					Severity: mustParseSeverity(misconfiguration.Severity),
+				})
 			}
-
-			for _, vulnResults := range r.Report.Results {
-				for _, misconfiguration := range vulnResults.Misconfigurations {
-					issues.Misconfigurations.AddSeverity(misconfiguration.Severity)
-					issues.Total.AddSeverity(misconfiguration.Severity)
+			for _, vulnerability := range vulnResults.Vulnerabilities {
+				nvdScore := float64(0)
+				if nvd, ok := vulnerability.CVSS["nvd"]; ok {
+					nvdScore = nvd.V3Score
 				}
-				for _, vulnerability := range vulnResults.Vulnerabilities {
-					issues.Vulnerabilities.AddSeverity(vulnerability.Severity)
-					nvdScore := float64(0)
-					if nvd, ok := vulnerability.CVSS["nvd"]; ok {
-						nvdScore = nvd.V3Score
-					}
-					issues.Vulnerabilities.Vulnerabilities = append(issues.Vulnerabilities.Vulnerabilities, &ImageIssueVulnerability{
-						VulnerabilityID: vulnerability.VulnerabilityID,
-						Severity:        vulnerability.Severity,
-						PkgID:           vulnerability.PkgID,
-						PrimaryURL:      vulnerability.PrimaryURL,
-						Title:           vulnerability.Title,
-						Description:     vulnerability.Description,
-						NvdV3Score:      nvdScore,
-						PublishedDate:   vulnerability.PublishedDate,
-					})
-					issues.Total.AddSeverity(vulnerability.Severity)
-				}
-				for _, secret := range vulnResults.Secrets {
-					issues.Secrets.AddSeverity(secret.Severity)
-					issues.Total.AddSeverity(secret.Severity)
-				}
+				issues.Vulnerabilities = append(issues.Vulnerabilities, &ImageIssueVulnerability{
+					VulnerabilityID: vulnerability.VulnerabilityID,
+					Severity:        mustParseSeverity(vulnerability.Severity),
+					PkgID:           vulnerability.PkgID,
+					PrimaryURL:      vulnerability.PrimaryURL,
+					Title:           vulnerability.Title,
+					Description:     vulnerability.Description,
+					NvdV3Score:      nvdScore,
+					PublishedDate:   vulnerability.PublishedDate,
+				})
 			}
-
-			trivyReport[r.Image] = &TrivyImageReport{
-				ImageCreated: r.Report.Metadata.ImageConfig.Created.Time,
-				ImageIssues:  issues,
+			for _, secret := range vulnResults.Secrets {
+				issues.Secrets = append(issues.Secrets, &ImageIssueSecret{
+					Title:    secret.Title,
+					Severity: mustParseSeverity(secret.Severity),
+				})
 			}
 		}
 	}
 
-	return trivyReport
+	return issues
 }
