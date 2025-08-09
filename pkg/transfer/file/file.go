@@ -1,4 +1,4 @@
-package transfer
+package transferfile
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bartlettc22/image-inquisitor/pkg/api/metadata"
+	"github.com/bartlettc22/image-inquisitor/pkg/transfer"
 	"github.com/bartlettc22/image-inquisitor/pkg/utils"
 	yaml "github.com/goccy/go-yaml"
 )
@@ -26,7 +27,7 @@ type FileTransferer struct {
 }
 
 // Ensure FileTransferer implements Transferer
-var _ Transferer = &FileTransferer{}
+var _ transfer.Transferer = &FileTransferer{}
 
 // NewFileTransferer creates a new file importer/exporter
 func NewFileTransferer(config *FileTransfererConfig) (*FileTransferer, error) {

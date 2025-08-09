@@ -40,7 +40,7 @@ dev-run:
 # List files whose formatting differs from gofmts
 .PHONY: fmt-check
 fmt-check: 
-	docker run $(DOCKER_RUN_FLAGS) golang:$(GO_VERSION) gofmt -l $(GO_FILES_NO_VENDOR)
+	test -z $$(docker run $(DOCKER_RUN_FLAGS) golang:$(GO_VERSION) gofmt -l $(GO_FILES_NO_VENDOR))
 
 .PHONY: mkdirs
 mkdirs:

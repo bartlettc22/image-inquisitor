@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	transferapi "github.com/bartlettc22/image-inquisitor/pkg/transfer"
+	transferfileapi "github.com/bartlettc22/image-inquisitor/pkg/transfer/file"
 	transfergcsapi "github.com/bartlettc22/image-inquisitor/pkg/transfer/gcs"
 	"github.com/spf13/viper"
 )
@@ -36,7 +37,7 @@ func TransfererFromConfig(destination string) (transferapi.Transferer, error) {
 
 	switch protocol {
 	case DestinationFile:
-		return transferapi.NewFileTransferer(&transferapi.FileTransfererConfig{
+		return transferfileapi.NewFileTransferer(&transferfileapi.FileTransfererConfig{
 			Path: path,
 		})
 	case DestinationGCS:

@@ -1,4 +1,4 @@
-package gcs
+package transfergcs
 
 import (
 	"bytes"
@@ -10,13 +10,14 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/bartlettc22/image-inquisitor/pkg/api/metadata"
 	"github.com/bartlettc22/image-inquisitor/pkg/transfer"
+	gcsclient "github.com/bartlettc22/image-inquisitor/pkg/transfer/gcs/client"
 	yaml "github.com/goccy/go-yaml"
 	"google.golang.org/api/iterator"
 )
 
 // GCSTransfererConfig is the configuration for importing/exporting to GCS
 type GCSTransfererConfig struct {
-	StorageClient *storage.Client
+	StorageClient gcsclient.GCSClient
 	Bucket        string
 	Path          string
 }
@@ -53,7 +54,7 @@ func NewGCSTransferer(config *GCSTransfererConfig) (*GCSTransferer, error) {
 // Export exports a manifest to GCS with the given name as a component of the file name
 func (t *GCSTransferer) Export(ctx context.Context, name string, manifest *metadata.Manifest) error {
 
-	fileName := filepath.Join(t.Path, name, ".yaml")
+	fileName := filepath.Join(t.Path, name+".yaml")
 
 	bucket := t.StorageClient.Bucket(t.Bucket)
 	wc := bucket.Object(fileName).NewWriter(ctx)
