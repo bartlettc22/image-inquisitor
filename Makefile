@@ -28,7 +28,7 @@ publish-image: build-image
 	docker push $(DOCKER_IMAGE)
 
 .PHONY: dev-run
-dev-run:
+dev-run: 
 	go run ./... \
 	--log-level=debug \
 	--log-json=true \
@@ -44,8 +44,9 @@ fmt-check:
 
 .PHONY: mkdirs
 mkdirs:
+	mkdir -p $$HOME/go
 	mkdir -p $$HOME/.cache/go-build
-	mkdir -p -v $$HOME/.cache/golangci-lint
+	mkdir -p $$HOME/.cache/golangci-lint
 
 ## Run golangci-lint checker
 .PHONY: lint-check
@@ -54,7 +55,7 @@ lint-check: mkdirs
 
 # Tidy and vendor dependencies
 .PHONY: tidy
-tidy: 
+tidy: mkdirs
 	docker run $(DOCKER_RUN_FLAGS) golang:$(GO_VERSION) sh -c "go mod tidy && go mod vendor"
 
 .PHONY: clean
@@ -63,5 +64,5 @@ clean:
 
 # Run unit tests in a docker container
 .PHONY: test
-test:
+test: mkdirs
 	docker run $(DOCKER_RUN_FLAGS) golang:$(GO_VERSION) go test -v -covermode=atomic -cover ./...
