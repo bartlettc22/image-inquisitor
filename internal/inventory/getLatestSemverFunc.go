@@ -2,15 +2,17 @@ package inventory
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/bartlettc22/image-inquisitor/internal/registries"
 	log "github.com/sirupsen/logrus"
 )
 
 type getLatestSemverResult struct {
-	ReferencePrefix    string
-	LatestSemverTag    string
-	LatestSemverDigest string
+	ReferencePrefix     string
+	LatestSemverTag     string
+	LatestSemverDigest  string
+	LatestSemverCreated time.Time
 }
 
 func newGetLatestSemverFunc(referencePrefix string) func() (any, error) {
@@ -35,6 +37,11 @@ func newGetLatestSemverFunc(referencePrefix string) func() (any, error) {
 			}
 
 			result.LatestSemverDigest, err = image.Digest()
+			if err != nil {
+				return nil, err
+			}
+
+			result.LatestSemverCreated, err = image.Created()
 			if err != nil {
 				return nil, err
 			}

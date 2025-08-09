@@ -21,17 +21,17 @@ func Cmd() *cobra.Command {
 	}
 
 	config.SetSourceFlags(exportCmd)
-	exportCmd.PersistentFlags().StringP("export-destination", "", "", "Destination of export. Should take the format <protocol>://<destination>. <protocol> can be one of 'gs' (Google Cloud Storage), or 'file'.")
-
-	err := viper.BindPFlags(exportCmd.PersistentFlags())
-	if err != nil {
-		log.Fatal(err)
-	}
+	exportCmd.PersistentFlags().StringP("export-destination", "", "", "Destination (directory) of export. Should take the format <protocol>://<destination>. <protocol> can be one of 'gs' (Google Cloud Storage), or 'file'.")
 
 	return exportCmd
 }
 
 func run(cmd *cobra.Command, args []string) {
+
+	err := viper.BindPFlags(cmd.PersistentFlags())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	sourceID := viper.GetString("source-id")
 	if sourceID == "" {

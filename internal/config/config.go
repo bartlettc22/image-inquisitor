@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func Init() {
+func InitConfig() {
 	logLevelStr := viper.GetString("log-level")
 	logLevel, err := log.ParseLevel(logLevelStr)
 	if err != nil {

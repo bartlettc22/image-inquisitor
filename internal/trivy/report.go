@@ -19,33 +19,33 @@ const (
 
 // ImageIssues is a list of issues found by Trivy
 type ImageIssues struct {
-	Misconfigurations []*ImageIssueMisconfiguration `json:"misconfigurations"`
-	Vulnerabilities   []*ImageIssueVulnerability    `json:"vulnerabilities"`
-	Secrets           []*ImageIssueSecret           `json:"secrets"`
+	Misconfigurations []*ImageIssueMisconfiguration `json:"misconfigurations,omitempty" yaml:"misconfigurations,omitempty"`
+	Vulnerabilities   []*ImageIssueVulnerability    `json:"vulnerabilities,omitempty" yaml:"vulnerabilities,omitempty"`
+	Secrets           []*ImageIssueSecret           `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
 // ImageIssueMisconfiguration is a misconfiguration issue found by Trivy
 type ImageIssueMisconfiguration struct {
-	Title    string   `json:"title"`
-	Severity Severity `json:"severity"`
+	Title    string   `json:"title" yaml:"title"`
+	Severity Severity `json:"severity" yaml:"severity"`
 }
 
 // ImageIssueVulnerability is a vulnerability issue found by Trivy
 type ImageIssueVulnerability struct {
-	VulnerabilityID string     `json:"registry"`
-	Severity        Severity   `json:"severity"`
-	PkgID           string     `json:"pkgID"`
-	PrimaryURL      string     `json:"primaryURL"`
-	Title           string     `json:"title"`
-	Description     string     `json:"description"`
-	NvdV3Score      float64    `json:"nvdV3Score"`
-	PublishedDate   *time.Time `json:"publishedDate"`
+	VulnerabilityID string     `json:"vulnerabilityID" yaml:"vulnerabilityID"`
+	Severity        Severity   `json:"severity" yaml:"severity"`
+	PkgID           string     `json:"pkgID" yaml:"pkgID"`
+	PrimaryURL      string     `json:"primaryURL" yaml:"primaryURL"`
+	Title           string     `json:"title" yaml:"title"`
+	Description     string     `json:"description" yaml:"description"`
+	NvdV3Score      float64    `json:"nvdV3Score" yaml:"nvdV3Score"`
+	PublishedDate   *time.Time `json:"publishedDate" yaml:"publishedDate"`
 }
 
 // ImageIssueSecret is a secret issue found by Trivy
 type ImageIssueSecret struct {
-	Title    string   `json:"title"`
-	Severity Severity `json:"severity"`
+	Title    string   `json:"title " yaml:"title"`
+	Severity Severity `json:"severity" yaml:"severity"`
 }
 
 func mustParseSeverity(severity string) Severity {

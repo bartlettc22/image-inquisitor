@@ -1,6 +1,9 @@
 package registries
 
 import (
+	"strings"
+	"time"
+
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -14,11 +17,13 @@ type Image struct {
 	image        v1.Image
 }
 
-func NewImage(imageName string) (*Image, error) {
-	ref, err := name.ParseReference(imageName)
+func NewImage(imageRef string) (*Image, error) {
+
+	ref, err := name.ParseReference(imageRef)
 	if err != nil {
 		return nil, err
 	}
+
 	return &Image{
 		ref: ref,
 		// Hardcoded for now
@@ -28,9 +33,33 @@ func NewImage(imageName string) (*Image, error) {
 	}, nil
 }
 
-// Name returns the original given name of the image
-func (i *Image) Name() string {
+// Ref returns the original image reference string
+func (i *Image) Ref() string {
 	return i.ref.String()
+}
+
+// NormalizedRef returns the normalized image reference string
+// This expands the registry and repository to the full name
+func (i *Image) NormalizedRef() string {
+	return i.ref.Name()
+}
+
+// TagRef returns the tag portion of the image name if it wasn't referenced by digest
+func (i *Image) TagRef() string {
+	if i.IsTagRef() {
+		return i.ref.Identifier()
+	}
+	return ""
+}
+
+// IsTagRef returns true if the orginal image name is a tagged reference
+func (i *Image) IsTagRef() bool {
+	return !i.IsDigestRef()
+}
+
+// IsDigestRef returns true if the orginal image name is a digest reference
+func (i *Image) IsDigestRef() bool {
+	return strings.Contains(i.Ref(), "@")
 }
 
 func (i *Image) Registry() string {
@@ -41,11 +70,11 @@ func (i *Image) Repository() string {
 	return i.ref.Context().RepositoryStr()
 }
 
-// ExpandedRepository returns a normalized name, with registry and
+// RefPrefix returns a normalized name, with registry and repo but
 // without the tag/digest, that can be compared for equality.
 // For references to shortened docker.io images (i.e. "nginx:latest"),
 // this will be the full name with registry (i.e. "index.docker.io/library/nginx")
-func (i *Image) ExpandedRepository() string {
+func (i *Image) RefPrefix() string {
 	return i.ref.Context().String()
 }
 
@@ -61,6 +90,20 @@ func (i *Image) Digest() (string, error) {
 	}
 
 	return digest.String(), nil
+}
+
+func (i *Image) Created() (time.Time, error) {
+	image, err := i.remoteImage()
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	config, err := image.ConfigFile()
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return config.Created.Time, nil
 }
 
 func (i *Image) Architecture() (string, error) {

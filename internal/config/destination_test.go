@@ -15,15 +15,33 @@ func TestParseDestination(t *testing.T) {
 		errContains string
 	}{
 		{
-			destination: "file://tmp/image-inquisitor.yaml",
+			destination: "file://tmp/path/to/file.yaml",
 			protocol:    "file",
-			path:        "/tmp/image-inquisitor.yaml",
+			path:        "tmp/path/to/file.yaml",
+			errContains: "",
+		},
+		{
+			destination: "file://tmp/path/to/dir/",
+			protocol:    "file",
+			path:        "tmp/path/to/dir/",
+			errContains: "",
+		},
+		{
+			destination: "file:///tmp/path/from/root/dir/file.yaml",
+			protocol:    "file",
+			path:        "/tmp/path/from/root/dir/file.yaml",
 			errContains: "",
 		},
 		{
 			destination: "gs://bucket/path/to/file.yaml",
 			protocol:    "gs",
 			path:        "bucket/path/to/file.yaml",
+			errContains: "",
+		},
+		{
+			destination: "gs://bucket/path/to/dir/",
+			protocol:    "gs",
+			path:        "bucket/path/to/dir/",
 			errContains: "",
 		},
 		{
@@ -47,7 +65,7 @@ func TestParseDestination(t *testing.T) {
 	}
 
 	for _, test := range testmatrix {
-		protocol, path, err := ParseExportDestination(test.destination)
+		protocol, path, err := ParseDestination(test.destination)
 		if test.errContains != "" {
 			require.Error(t, err)
 			require.Contains(t, err.Error(), test.errContains)

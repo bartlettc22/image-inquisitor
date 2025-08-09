@@ -13,8 +13,15 @@ func SetSourceFlags(cmd *cobra.Command) {
 }
 
 func SetRunFlags(cmd *cobra.Command) {
+
+	// Importing
+	cmd.PersistentFlags().StringP("import-from", "", "", "Location (directory) of sources to import.  Should take the format <protocol>://<destination>. <protocol> can be one of 'gs' (Google Cloud Storage), or 'file'.")
+
+	// Scanning
 	cmd.PersistentFlags().BoolP("latest-semver-scan", "", true, "Scan image registry for latest semver tag")
 	cmd.PersistentFlags().BoolP("security-scan", "", true, "Whether to run security scan against images")
+
+	// Reports
 	cmd.PersistentFlags().StringSliceP("reports", "", []string{"InventoryReport"}, "List of reports to output.  Can be one or more of [inventory, summary, summaryImageCombined, summaryRegistry, imageSummary, imageRegistry, imageVulnerabilities, imageKubernetes]")
 	cmd.PersistentFlags().StringSliceP("report-destinations", "", []string{"stdout"}, "Comma-separated list of output destinations.  Can be one or more of [stdout, file]. If 'file', must specify 'report-file-dir' parameter")
 	cmd.PersistentFlags().StringP("report-format", "", "json", "The desired output format.  One of json, yaml")

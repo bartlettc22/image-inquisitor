@@ -12,22 +12,11 @@ func FetchLatestSemverTagByStr(repoStr string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return FetchLatestSemverTag(&repository)
-}
 
-func FetchLatestSemverTag(repository *name.Repository) (string, error) {
-	tags, err := FetchTags(repository)
+	tags, err := remote.List(repository, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		return "", err
 	}
 
 	return utils.LatestSemanticVersionStr(tags), nil
-}
-
-func FetchTags(repository *name.Repository) ([]string, error) {
-	tags, err := remote.List(*repository, remote.WithAuthFromKeychain(authn.DefaultKeychain))
-	if err != nil {
-		return nil, err
-	}
-	return tags, nil
 }

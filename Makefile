@@ -2,11 +2,18 @@ SHELL := /bin/bash
 VERSION ?= $(shell cat ./VERSION)
 REGISTRY := ghcr.io/bartlettc22
 DOCKER_IMAGE := $(REGISTRY)/image-inquisitor:$(VERSION)
-GO_VERSION ?= 1.22.3
-GOLANGCI_VERSION := golangci/golangci-lint:v1.60.3
+GO_VERSION ?= 1.24.6
+GOLANGCI_VERSION := v2.3.1
 GO_FILES_NO_VENDOR := $(shell find ./* -name "*.go" -not -path "./vendor/*")
-TRIVY_VERSION ?= 0.54.1
-DOCKER_RUN_FLAGS := --rm -u $$(id -u $${USER}):$$(id -g $${USER})
+TRIVY_VERSION ?= 0.65.0
+DOCKER_RUN_FLAGS := --rm \
+  -u $$(id -u $${USER}):$$(id -g $${USER}) \
+  -v $$PWD:/src -w /src \
+  -v $$HOME/.cache/go-build:/.cache/go-build \
+  -v $$HOME/go:/go \
+  -e GOCACHE=/.cache/go-build \
+  -e GOPATH-/go \
+  -v $$HOME/.cache/golangci-lint:/.cache/golangci-lint
 
 .PHONY: build-image
 build-image:
@@ -30,32 +37,31 @@ dev-run:
 	--include-kubernetes-namespaces=prometheus \
 	--image-source-file-path=$$(pwd)/test/images.txt
 
+# List files whose formatting differs from gofmts
 .PHONY: fmt-check
-fmt-check: ## List files whose formatting differs from gofmt's.
-	test -z $(shell gofmt -l $(GO_FILES_NO_VENDOR))
+fmt-check: 
+	docker run $(DOCKER_RUN_FLAGS) golang:$(GO_VERSION) gofmt -l $(GO_FILES_NO_VENDOR)
 
+.PHONY: mkdirs
+mkdirs:
+	mkdir -p $$HOME/.cache/go-build
+	mkdir -p -v $$HOME/.cache/golangci-lint
+
+## Run golangci-lint checker
 .PHONY: lint-check
-lint-check: ## Run golangci-lint linter.
-	mkdir -p $$HOME/.cache/go-build; \
-	mkdir -p -v $$HOME/.cache/golangci-lint; \
-	docker run $(DOCKER_RUN_FLAGS) \
-		-v $$PWD:/src \
-		-w /src \
-		-v $$HOME/.cache/go-build:/.cache/go-build \
-		-v $$HOME/.cache/golangci-lint:/.cache/golangci-lint \
-		-e GOLANGCI_LINT_CACHE=/.cache/golangci-lint \
-		-e GOCACHE=/.cache/go-build \
-		$(GOLANGCI_VERSION) golangci-lint run --timeout=4m
+lint-check: mkdirs 
+	docker run $(DOCKER_RUN_FLAGS) golangci/golangci-lint:$(GOLANGCI_VERSION) golangci-lint run --timeout=4m
 
-.PHONY: vendor
-vendor: ## Tidy and vendor dependencies.
-	go mod tidy
-	go mod vendor
+# Tidy and vendor dependencies
+.PHONY: tidy
+tidy: 
+	docker run $(DOCKER_RUN_FLAGS) golang:$(GO_VERSION) sh -c "go mod tidy && go mod vendor"
 
 .PHONY: clean
 clean:
 	rm -rf ./test/trivy-results
 
+# Run unit tests in a docker container
 .PHONY: test
-test: ## Run unit and integration tests.
-	go test -v -covermode=atomic -cover ./...
+test:
+	docker run $(DOCKER_RUN_FLAGS) golang:$(GO_VERSION) go test -v -covermode=atomic -cover ./...

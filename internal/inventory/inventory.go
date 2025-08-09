@@ -3,10 +3,11 @@ package inventory
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/bartlettc22/image-inquisitor/internal/trivy"
 	callbackworker "github.com/bartlettc22/image-inquisitor/internal/worker/callback"
-	"github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/sources"
+	sourcesapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/sources"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -21,18 +22,20 @@ type InventoryGenerator struct {
 type Inventory map[string]*InventoryRepositoryPrefixDetails
 
 type InventoryRepositoryPrefixDetails struct {
-	Registry           string                `yaml:"registry" json:"registry"`
-	Repository         string                `yaml:"repository" json:"repository"`
-	LatestSemverTag    string                `yaml:"latestSemverTag,omitempty" json:"latestSemverTag,omitempty"`
-	LatestSemverDigest string                `yaml:"latestSemverDigest,omitempty" json:"latestSemverDigest,omitempty"`
-	Digests            InventoryImageDigests `yaml:"digests" json:"digests"`
+	Registry            string                `yaml:"registry" json:"registry"`
+	Repository          string                `yaml:"repository" json:"repository"`
+	LatestSemverTag     string                `yaml:"latestSemverTag,omitempty" json:"latestSemverTag,omitempty"`
+	LatestSemverDigest  string                `yaml:"latestSemverDigest,omitempty" json:"latestSemverDigest,omitempty"`
+	LatestSemverCreated time.Time             `yaml:"latestSemverCreated,omitempty" json:"latestSemverCreated,omitempty"`
+	Digests             InventoryImageDigests `yaml:"digests" json:"digests"`
 }
 
 type InventoryImageDigests map[string]*InventoryDigestDetails
 
 type InventoryDigestDetails struct {
-	Sources []*sources.Source  `yaml:"sources" json:"sources"`
-	Issues  *trivy.ImageIssues `yaml:"issues,omitempty" json:"issues,omitempty"`
+	Created time.Time            `yaml:"created" json:"created"`
+	Sources []*sourcesapi.Source `yaml:"sources" json:"sources"`
+	Issues  *trivy.ImageIssues   `yaml:"issues,omitempty" json:"issues,omitempty"`
 }
 
 type InventoryConfig struct {
@@ -59,13 +62,13 @@ func NewInventoryGenerator(c *InventoryConfig) (*InventoryGenerator, error) {
 	}, nil
 }
 
-func (i *InventoryGenerator) AddImagesFromSourceList(sourceList sources.SourceList) {
+func (i *InventoryGenerator) AddSources(sourceList sourcesapi.SourceList) {
 	for _, source := range sourceList {
-		i.AddImageFromSource(source)
+		i.AddSource(source)
 	}
 }
 
-func (i *InventoryGenerator) AddImageFromSource(source *sources.Source) {
+func (i *InventoryGenerator) AddSource(source *sourcesapi.Source) {
 	i.workerPoolWG.Add(1)
 	i.workerPool.AddTask(callbackworker.NewCallbackTask(
 		newAddSourceFunc(source),
@@ -83,7 +86,7 @@ func (i *InventoryGenerator) Wait() {
 	i.workerPool.Wait()
 }
 
-func (i *InventoryGenerator) AddSourceCallback(result interface{}, err error) {
+func (i *InventoryGenerator) AddSourceCallback(result any, err error) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	defer i.workerPoolWG.Done()
@@ -121,7 +124,8 @@ func (i *InventoryGenerator) AddSourceCallback(result interface{}, err error) {
 	// Make digest structure if it doesn't exist
 	if _, ok := i.inventory[sourceResult.ReferencePrefix].Digests[sourceResult.Digest]; !ok {
 		i.inventory[sourceResult.ReferencePrefix].Digests[sourceResult.Digest] = &InventoryDigestDetails{
-			Sources: []*sources.Source{sourceResult.Source},
+			Created: sourceResult.Created,
+			Sources: []*sourcesapi.Source{sourceResult.Source},
 		}
 
 		// Kick of scan (async)
@@ -160,10 +164,11 @@ func (i *InventoryGenerator) GetLatestSemverCallback(result interface{}, err err
 	if _, ok := i.inventory[latestSemverResult.ReferencePrefix]; ok {
 		i.inventory[latestSemverResult.ReferencePrefix].LatestSemverTag = latestSemverResult.LatestSemverTag
 		i.inventory[latestSemverResult.ReferencePrefix].LatestSemverDigest = latestSemverResult.LatestSemverDigest
+		i.inventory[latestSemverResult.ReferencePrefix].LatestSemverCreated = latestSemverResult.LatestSemverCreated
 
 		// Add the latest digest as a source
-		i.AddImageFromSource(&sources.Source{
-			Type:           "registryLatestSemver",
+		i.AddSource(&sourcesapi.Source{
+			Type:           sourcesapi.RegistryLatestSemverSourceType,
 			ImageReference: fmt.Sprintf("%s@%s", latestSemverResult.ReferencePrefix, latestSemverResult.LatestSemverDigest),
 			SourceDetails: struct {
 				Tag string `yaml:"tag" json:"tag"`

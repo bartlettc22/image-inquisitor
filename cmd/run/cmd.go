@@ -15,8 +15,11 @@ func Cmd() *cobra.Command {
 		Short: "Run the tool in single run mode",
 		Long:  "Run the tool in single run mode",
 		Run: func(cmd *cobra.Command, args []string) {
-			viper.BindPFlags(cmd.Flags())
-			err := runner.Run()
+			err := viper.BindPFlags(cmd.PersistentFlags())
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = runner.Run()
 			if err != nil {
 				log.Fatalf("fatal run error: %v", err)
 			}
@@ -25,11 +28,6 @@ func Cmd() *cobra.Command {
 
 	config.SetSourceFlags(singleRunCmd)
 	config.SetRunFlags(singleRunCmd)
-
-	err := viper.BindPFlags(singleRunCmd.PersistentFlags())
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	return singleRunCmd
 }

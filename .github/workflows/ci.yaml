@@ -4,8 +4,29 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 jobs:
+  fmt:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Run fmt-check
+        run: make fmt-check
+  lint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run lint-check
+        run: make lint-check
+  test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run tests
+        run: make test
   build-and-publish:
     runs-on: ubuntu-latest
     permissions:
@@ -24,11 +45,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run fmt-check
-        run: make fmt-check
-      # - name: Run lint-check
-      #   run: make lint-check
-      - name: Run tests
-        run: make test
+
       - name: Build and push image
-        run: VERSION=latest make publish-image
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            VERSION=pr-${{ github.event.pull_request.number }} make publish-image
+          else
+            VERSION=$(cat ./VERSION) make publish-image
+            VERSION=latest make publish-image
+          fi
+          

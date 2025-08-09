@@ -22,14 +22,6 @@ type Metadata struct {
 	Created time.Time `json:"created" yaml:"created"`
 }
 
-// Ensure Metadata implements Resource
-var _ ManifestObject = &Manifest{}
-
-// ObjectMetadata returns the metadata object
-func (m *Manifest) ObjectMetadata() *Metadata {
-	return m.Metadata
-}
-
 // NewManifest creates a new manifest object
 func NewManifest(APIVersion, kind string, spec any) *Manifest {
 	return &Manifest{

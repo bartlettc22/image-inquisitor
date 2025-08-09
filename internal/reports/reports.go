@@ -48,6 +48,8 @@ func ParseReportType(reportType string) (reportsapi.ReportKind, error) {
 		return reportsapi.ReportInventoryKind, nil
 	case reportsapi.ReportSummaryKind.String():
 		return reportsapi.ReportSummaryKind, nil
+	case reportsapi.ReportImageSummaryKind.String():
+		return reportsapi.ReportImageSummaryKind, nil
 	default:
 		return "", fmt.Errorf("invalid report type: %s", reportType)
 	}
@@ -157,6 +159,8 @@ func (rg *ReportGenerator) Generate(inventory inventory.Inventory) error {
 			report = GenerateInventoryReport(inventory)
 		case reportsapi.ReportSummaryKind:
 			report = GenerateSummaryReport(inventory)
+		case reportsapi.ReportImageSummaryKind:
+			report = GenerateImageSummaryReport(inventory)
 		default:
 			return fmt.Errorf("invalid report type: %s", reportType)
 		}

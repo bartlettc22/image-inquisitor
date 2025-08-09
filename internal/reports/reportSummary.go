@@ -13,10 +13,10 @@ func GenerateSummaryReport(inventory inventory.Inventory) *metadata.Manifest {
 	report := &reportsapi.ReportSummary{}
 	if inventory != nil {
 		report.RepoCount = len(inventory)
-		for _, image := range inventory {
-			report.DigestCount += len(image.Digests)
-			for _, digest := range image.Digests {
-				for _, source := range digest.Sources {
+		for _, imageRefPrefixDetails := range inventory {
+			report.DigestCount += len(imageRefPrefixDetails.Digests)
+			for _, digestDetails := range imageRefPrefixDetails.Digests {
+				for _, source := range digestDetails.Sources {
 					switch source.Type {
 					case sourcesapi.FileSourceType:
 						report.FileSourceCount++
@@ -25,7 +25,7 @@ func GenerateSummaryReport(inventory inventory.Inventory) *metadata.Manifest {
 					}
 				}
 
-				for _, issue := range digest.Issues.Vulnerabilities {
+				for _, issue := range digestDetails.Issues.Vulnerabilities {
 					switch issue.Severity {
 					case trivy.Critical:
 						report.IssuesCriticalCount++

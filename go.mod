@@ -1,6 +1,6 @@
 module github.com/bartlettc22/image-inquisitor
 
-go 1.22.3
+go 1.24.6
 
 require (
 	cloud.google.com/go/storage v1.39.1
@@ -13,7 +13,6 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/api v0.172.0
-	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.31.0
 	k8s.io/apimachinery v0.31.0
 	k8s.io/client-go v0.31.0
@@ -230,6 +229,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	helm.sh/helm/v3 v3.15.3 // indirect
 	k8s.io/apiextensions-apiserver v0.31.0 // indirect

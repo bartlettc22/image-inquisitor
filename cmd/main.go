@@ -28,9 +28,8 @@ func main() {
 
 	rootCmd.AddCommand(exportcmd.Cmd())
 	rootCmd.AddCommand(runcmd.Cmd())
-	// rootCmd.AddCommand(servercmd.Cmd())
 
-	cobra.OnInitialize(config.Init)
+	cobra.OnInitialize(config.InitConfig)
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
