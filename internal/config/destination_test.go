@@ -18,31 +18,26 @@ func TestParseDestination(t *testing.T) {
 			destination: "file://tmp/path/to/file.yaml",
 			protocol:    "file",
 			path:        "tmp/path/to/file.yaml",
-			errContains: "",
 		},
 		{
 			destination: "file://tmp/path/to/dir/",
 			protocol:    "file",
 			path:        "tmp/path/to/dir/",
-			errContains: "",
 		},
 		{
 			destination: "file:///tmp/path/from/root/dir/file.yaml",
 			protocol:    "file",
 			path:        "/tmp/path/from/root/dir/file.yaml",
-			errContains: "",
 		},
 		{
 			destination: "gs://bucket/path/to/file.yaml",
 			protocol:    "gs",
 			path:        "bucket/path/to/file.yaml",
-			errContains: "",
 		},
 		{
 			destination: "gs://bucket/path/to/dir/",
 			protocol:    "gs",
 			path:        "bucket/path/to/dir/",
-			errContains: "",
 		},
 		{
 			destination: "xyz://bucket/path/to/file.yaml",
@@ -54,13 +49,23 @@ func TestParseDestination(t *testing.T) {
 			destination: "/bucket/path/to/file.yaml",
 			protocol:    "",
 			path:        "",
-			errContains: "invalid destination",
+			errContains: "invalid protocol",
 		},
 		{
 			destination: "file://lib://bucket/path/to/file.yaml",
 			protocol:    "",
 			path:        "",
-			errContains: "invalid destination",
+			errContains: "invalid file destination",
+		},
+		{
+			destination: "stdout",
+			protocol:    "stdout",
+			path:        "",
+		},
+		{
+			destination: "kubernetes",
+			protocol:    "kubernetes",
+			path:        "",
 		},
 	}
 

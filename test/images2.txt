@@ -1,0 +1,2 @@
+quay.io/prometheus-operator/prometheus-config-reloader:v0.84.1
+docker.io/google/cloud-sdk:428.0.0

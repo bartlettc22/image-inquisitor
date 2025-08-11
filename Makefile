@@ -1,8 +1,8 @@
 SHELL := /bin/bash
-VERSION ?= $(shell cat ./VERSION)
+VERSION ?= dev
 REGISTRY := ghcr.io/bartlettc22
 DOCKER_IMAGE := $(REGISTRY)/image-inquisitor:$(VERSION)
-GO_VERSION ?= 1.24.6
+GO_VERSION ?= $(shell grep '^go ' go.mod | awk '{print $$2}')
 GOLANGCI_VERSION := v2.3.1
 GO_FILES_NO_VENDOR := $(shell find ./* -name "*.go" -not -path "./vendor/*")
 TRIVY_VERSION ?= 0.65.0
@@ -37,6 +37,24 @@ dev-run:
 	--include-kubernetes-namespaces=prometheus \
 	--image-source-file-path=$$(pwd)/test/images.txt
 
+.PHONY: dev-run-docker
+dev-run-docker: build-image
+	mkdir -p $$HOME/.cache/imginq/trivy
+	mkdir -p ./.reports/dev-run
+	docker run \
+	-u $$(id -u $${USER}):$$(id -g $${USER}) \
+	-v $$HOME/.cache/imginq/trivy:/trivy/ \
+	-v $$PWD/.reports/dev-run/:/reports/ \
+	-v $$PWD/test/images2.txt:/images2.txt \
+	$(DOCKER_IMAGE) \
+	run \
+	--log-level=debug \
+	--source-id=testsrc \
+	--source=file \
+	--source-file-path=/images2.txt \
+	--report-location=file:///reports \
+	--reports InventoryReport,SummaryReport,ImageSummaryReport
+
 # List files whose formatting differs from gofmts
 .PHONY: fmt-check
 fmt-check: 
@@ -66,3 +84,8 @@ clean:
 .PHONY: test
 test: mkdirs
 	docker run $(DOCKER_RUN_FLAGS) golang:$(GO_VERSION) go test -v -covermode=atomic -cover ./...
+
+# Run integration tests in a docker container
+.PHONY: integration-test
+integration-test: mkdirs
+	docker run $(DOCKER_RUN_FLAGS) golang:$(GO_VERSION) go test -v -covermode=atomic -cover -tags=integration ./...
