@@ -6,9 +6,10 @@ import (
 	"github.com/bartlettc22/image-inquisitor/pkg/api/metadata"
 	reportsapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/reports"
 	sourcesapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/sources"
+	"github.com/google/uuid"
 )
 
-func GenerateSummaryReport(inventory inventory.Inventory) *metadata.Manifest {
+func GenerateSummaryReport(inventory inventory.Inventory, runID uuid.UUID) *metadata.Manifest {
 
 	report := &reportsapi.ReportSummary{}
 	if inventory != nil {
@@ -43,5 +44,5 @@ func GenerateSummaryReport(inventory inventory.Inventory) *metadata.Manifest {
 		}
 	}
 
-	return reportsapi.NewReportManifest(reportsapi.ReportSummaryKind, report)
+	return reportsapi.NewReportManifest(reportsapi.ReportSummaryKind, runID.String(), report)
 }

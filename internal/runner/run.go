@@ -2,15 +2,20 @@ package runner
 
 import (
 	"context"
+	"time"
 
 	"github.com/bartlettc22/image-inquisitor/internal/config"
 	sourcesapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/sources"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
 var svcLog = log.WithField("service", "runner")
 
 func Run() error {
+
+	runID := uuid.New()
+	started := time.Now().UTC()
 
 	importer, err := config.ImporterFromConfig()
 	if err != nil {
@@ -56,7 +61,10 @@ func Run() error {
 	inventoryGenerator.AddSources(sources)
 	inventory := inventoryGenerator.Inventory()
 
+	finished := time.Now().UTC()
+
 	svcLog.Info("generating reports")
+	reportGenerator.SetRunStats(runID, started, finished)
 	err = reportGenerator.Generate(inventory)
 	if err != nil {
 		return err

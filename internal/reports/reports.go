@@ -3,11 +3,13 @@ package reports
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/bartlettc22/image-inquisitor/internal/inventory"
 	"github.com/bartlettc22/image-inquisitor/pkg/api/metadata"
 	reportsapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/reports"
 	yaml "github.com/goccy/go-yaml"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,8 +19,9 @@ type ReportFormat string
 var svcLog = log.WithField("service", "reports")
 
 const (
-	ReportFormatJSON ReportFormat = "json"
-	ReportFormatYAML ReportFormat = "yaml"
+	ReportFormatJSON           ReportFormat = "json"
+	ReportFormatYAML           ReportFormat = "yaml"
+	ReportFormatSimplifiedJSON ReportFormat = "simplified-json"
 
 	defaultReportFormat = ReportFormatJSON
 )
@@ -39,6 +42,8 @@ func ParseReportType(reportType string) (reportsapi.ReportKind, error) {
 		return reportsapi.ReportSummaryKind, nil
 	case reportsapi.ReportImageSummaryKind.String():
 		return reportsapi.ReportImageSummaryKind, nil
+	case reportsapi.ReportRunKind.String():
+		return reportsapi.ReportRunKind, nil
 	default:
 		return "", fmt.Errorf("invalid report type: %s", reportType)
 	}
@@ -50,6 +55,8 @@ func ParseReportFormat(reportFormat string) (ReportFormat, error) {
 		return ReportFormatJSON, nil
 	case ReportFormatYAML.String():
 		return ReportFormatYAML, nil
+	case ReportFormatSimplifiedJSON.String():
+		return ReportFormatSimplifiedJSON, nil
 	default:
 		return "", fmt.Errorf("invalid report format: %s", reportFormat)
 	}
@@ -68,10 +75,12 @@ type ReportGeneratorConfig struct {
 }
 
 type ReportGenerator struct {
+	runID        uuid.UUID
+	started      time.Time
+	finished     time.Time
 	reportTypes  []reportsapi.ReportKind
 	reportFormat ReportFormat
 	reportWriter ReportWriter
-	// reportFileDir     string
 }
 
 func NewReportGenerator(c ReportGeneratorConfig) (*ReportGenerator, error) {
@@ -102,6 +111,12 @@ func NewReportGenerator(c ReportGeneratorConfig) (*ReportGenerator, error) {
 	}, nil
 }
 
+func (rg *ReportGenerator) SetRunStats(runID uuid.UUID, started time.Time, finished time.Time) {
+	rg.runID = runID
+	rg.started = started
+	rg.finished = finished
+}
+
 func (rg *ReportGenerator) Generate(inventory inventory.Inventory) error {
 	for _, reportType := range rg.reportTypes {
 		var report *metadata.Manifest
@@ -110,30 +125,37 @@ func (rg *ReportGenerator) Generate(inventory inventory.Inventory) error {
 		svcLog.Infof("generating report: %s", reportType)
 		switch reportType {
 		case reportsapi.ReportInventoryKind:
-			report = GenerateInventoryReport(inventory)
+			report = GenerateInventoryReport(inventory, rg.runID)
 		case reportsapi.ReportSummaryKind:
-			report = GenerateSummaryReport(inventory)
+			report = GenerateSummaryReport(inventory, rg.runID)
 		case reportsapi.ReportImageSummaryKind:
-			report = GenerateImageSummaryReport(inventory)
+			report = GenerateImageSummaryReport(inventory, rg.runID)
+		case reportsapi.ReportRunKind:
+			report = GenerateRunReport(inventory, rg.runID, rg.started, rg.finished)
 		default:
 			return fmt.Errorf("invalid report type: %s", reportType)
 		}
 
+		reportFileName := fmt.Sprintf("%s.json", reportType)
 		var reportBytes []byte
-		var reportFileName string
 		switch rg.reportFormat {
 		case ReportFormatJSON:
-			reportBytes, err = json.MarshalIndent(report, "", "  ")
+			reportBytes, err = json.Marshal(report)
 			if err != nil {
 				return err
 			}
-			reportFileName = fmt.Sprintf("%s.json", reportType)
 		case ReportFormatYAML:
 			reportBytes, err = yaml.Marshal(report)
 			if err != nil {
 				return err
 			}
 			reportFileName = fmt.Sprintf("%s.yaml", reportType)
+		case ReportFormatSimplifiedJSON:
+			reportSimplified := SimplifiedManfiest(report)
+			reportBytes, err = json.Marshal(reportSimplified)
+			if err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("invalid report format: %s", rg.reportFormat)
 		}
@@ -147,4 +169,28 @@ func (rg *ReportGenerator) Generate(inventory inventory.Inventory) error {
 	}
 
 	return nil
+}
+
+func SimplifiedManfiest(manifest *metadata.Manifest) any {
+	return &SimplifiedReport{
+		Metadata: &SimplifiedReportMetadata{
+			Version: manifest.Version,
+			Kind:    manifest.Kind,
+			Created: manifest.Metadata.Created,
+			UUID:    manifest.Metadata.UUID,
+		},
+		Report: manifest.Spec,
+	}
+}
+
+type SimplifiedReport struct {
+	Metadata *SimplifiedReportMetadata `json:"metadata" yaml:"metadata"`
+	Report   any                       `json:"report" yaml:"report"`
+}
+
+type SimplifiedReportMetadata struct {
+	Version string    `json:"version" yaml:"version"`
+	Kind    string    `json:"kind" yaml:"kind"`
+	Created time.Time `json:"created" yaml:"created"`
+	UUID    string    `json:"uuid,omitempty" yaml:"uuid,omitempty"`
 }

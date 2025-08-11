@@ -1,9 +1,12 @@
 package reports
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type ReportWriter interface {
@@ -22,7 +25,12 @@ func NewStdoutReportWriter() *StdoutReportWriter {
 }
 
 func (w *StdoutReportWriter) WriteReport(name string, reportBytes []byte) error {
-	fmt.Println(string(reportBytes))
+	x := map[string]interface{}{}
+	err := json.Unmarshal(reportBytes, &x)
+	if err != nil {
+		return err
+	}
+	log.WithFields(x).Info("report")
 	return nil
 }
 
@@ -41,8 +49,7 @@ func NewFileReportWriter(path string) (*FileReportWriter, error) {
 }
 
 func (w *FileReportWriter) WriteReport(name string, reportBytes []byte) error {
-	reportFileName := fmt.Sprintf("%s.yaml", name)
-	err := os.WriteFile(filepath.Join(w.Path, reportFileName), reportBytes, 0644)
+	err := os.WriteFile(filepath.Join(w.Path, name), reportBytes, 0644)
 	if err != nil {
 		return err
 	}

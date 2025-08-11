@@ -35,7 +35,7 @@ type Source struct {
 
 // NewSourceListManifest creates a new source list manifest
 func NewSourceListManifest(sources SourceList) *metadata.Manifest {
-	return metadata.NewManifest(v1alpha1.APIVersion, SourceListKind, &SourcesSpec{
+	return metadata.NewManifest(v1alpha1.APIVersion, SourceListKind, "", &SourcesSpec{
 		Sources: sources,
 	})
 }

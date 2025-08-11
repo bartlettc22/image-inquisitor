@@ -20,15 +20,17 @@ type Manifest struct {
 // Metadata is a generic metadata object
 type Metadata struct {
 	Created time.Time `json:"created" yaml:"created"`
+	UUID    string    `json:"uuid,omitempty" yaml:"uuid,omitempty"`
 }
 
 // NewManifest creates a new manifest object
-func NewManifest(APIVersion, kind string, spec any) *Manifest {
+func NewManifest(APIVersion, kind string, uuid string, spec any) *Manifest {
 	return &Manifest{
 		Version: APIVersion,
 		Kind:    kind,
 		Metadata: &Metadata{
 			Created: time.Now().UTC(),
+			UUID:    uuid,
 		},
 		Spec: spec,
 	}

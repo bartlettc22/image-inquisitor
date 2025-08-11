@@ -9,10 +9,11 @@ import (
 	"github.com/bartlettc22/image-inquisitor/pkg/api/metadata"
 	reportsapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/reports"
 	sourcesapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/sources"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
-func GenerateImageSummaryReport(inventory inventory.Inventory) *metadata.Manifest {
+func GenerateImageSummaryReport(inventory inventory.Inventory, runID uuid.UUID) *metadata.Manifest {
 
 	report := reportsapi.ReportImageSummary{}
 	for _, imageRefPrefixDetails := range inventory {
@@ -88,7 +89,7 @@ func GenerateImageSummaryReport(inventory inventory.Inventory) *metadata.Manifes
 		}
 	}
 
-	return reportsapi.NewReportManifest(reportsapi.ReportImageSummaryKind, report)
+	return reportsapi.NewReportManifest(reportsapi.ReportImageSummaryKind, runID.String(), report)
 }
 
 func fetchRefSummary(report reportsapi.ReportImageSummary, ref string) *reportsapi.ImageSummary {

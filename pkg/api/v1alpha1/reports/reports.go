@@ -16,8 +16,8 @@ type ReportSpec struct {
 }
 
 // NewReportManifest creates a new report manifest
-func NewReportManifest(reportKind ReportKind, report any) *metadata.Manifest {
-	return metadata.NewManifest(v1alpha1.APIVersion, reportKind.String(), &ReportSpec{
+func NewReportManifest(reportKind ReportKind, uuid string, report any) *metadata.Manifest {
+	return metadata.NewManifest(v1alpha1.APIVersion, reportKind.String(), uuid, &ReportSpec{
 		Report: report,
 	})
 }

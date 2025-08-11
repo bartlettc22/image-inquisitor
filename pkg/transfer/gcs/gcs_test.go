@@ -20,7 +20,7 @@ func TestGCSTransfererRequireBucket(t *testing.T) {
 func TestGCSTransfererExport(t *testing.T) {
 	ctx := context.Background()
 
-	testManifests := metadata.NewManifest("1", "testKind", "abc123")
+	testManifests := metadata.NewManifest("1", "testKind", "", "abc123")
 	testManifestBytes, err := yaml.Marshal(testManifests)
 	require.NoError(t, err)
 
@@ -58,13 +58,13 @@ func TestGCSTransfererImportFile(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup imported data
-	testManifest1 := metadata.NewManifest("1", "testKind", "abc123")
+	testManifest1 := metadata.NewManifest("1", "testKind", "", "abc123")
 	testManifest1Bytes, err := yaml.Marshal(testManifest1)
 	require.NoError(t, err)
-	testManifest2 := metadata.NewManifest("2", "testKind", "abc123")
+	testManifest2 := metadata.NewManifest("2", "testKind", "", "abc123")
 	testManifest2Bytes, err := yaml.Marshal(testManifest2)
 	require.NoError(t, err)
-	testManifest3 := metadata.NewManifest("3", "testKind", "abc123")
+	testManifest3 := metadata.NewManifest("3", "testKind", "", "abc123")
 	testManifest3Bytes, err := yaml.Marshal(testManifest3)
 	require.NoError(t, err)
 
