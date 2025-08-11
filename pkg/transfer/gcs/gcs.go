@@ -37,13 +37,12 @@ func NewGCSTransferer(config *GCSTransfererConfig) (*GCSTransferer, error) {
 		return nil, fmt.Errorf("transfer to/from GCS, bucket not specified")
 	}
 
-	client := config.StorageClient
-	if client == nil {
-		client, err := storage.NewClient(context.Background())
+	if config.StorageClient == nil {
+		client, err := gcsclient.NewGCSClient(context.Background())
 		if err != nil {
 			return nil, fmt.Errorf("transfer to/from GCS, failed to create storage client: %w", err)
 		}
-		defer client.Close()
+		config.StorageClient = client
 	}
 
 	return &GCSTransferer{
