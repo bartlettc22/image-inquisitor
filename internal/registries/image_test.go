@@ -91,6 +91,17 @@ func TestNewImage(t *testing.T) {
 			imageRef:            "myregistry.io/a/b/c/nginx/nginx@abc123",
 			expectErrorContains: "could not parse reference",
 		},
+		{
+			imageRef:                   "nginx:v1.2.3@sha256:aeba7989c0cf30d121a8bff080c21b1467147e533488af5e9607db35a42b2566",
+			expectedRef:                "nginx:v1.2.3@sha256:aeba7989c0cf30d121a8bff080c21b1467147e533488af5e9607db35a42b2566",
+			expectedNormalizedRef:      "index.docker.io/library/nginx@sha256:aeba7989c0cf30d121a8bff080c21b1467147e533488af5e9607db35a42b2566",
+			expectedTagRef:             "",
+			expectedIsTagRef:           false,
+			expectedIsDigestRef:        true,
+			expectedRegistry:           "index.docker.io",
+			expectedRepository:         "library/nginx",
+			expectedExpandedRepository: "index.docker.io/library/nginx",
+		},
 	}
 
 	for _, tc := range testMatrix {

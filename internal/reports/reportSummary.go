@@ -40,6 +40,7 @@ func GenerateSummaryReport(inventory inventory.Inventory, runID uuid.UUID) map[s
 						case trivy.SeverityUnknown:
 							report.IssuesUnknownCount++
 						}
+						report.TotalIssuesCount++
 					}
 				}
 			}

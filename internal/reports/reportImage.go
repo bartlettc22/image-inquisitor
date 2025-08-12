@@ -7,6 +7,7 @@ import (
 	"github.com/bartlettc22/image-inquisitor/internal/inventory"
 	"github.com/bartlettc22/image-inquisitor/pkg/api/metadata"
 	reportsapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/reports"
+	sourcesapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/sources"
 	"github.com/google/uuid"
 )
 
@@ -47,8 +48,7 @@ func GenerateImageReports(inventory inventory.Inventory, runID uuid.UUID) map[st
 				AgeSeconds:  int(time.Since(digestDetails.Created).Seconds()),
 				SourceCount: len(digestDetails.Sources),
 
-				IsLatestSemver:     digest == latestSemverDigest,
-				OutOfDateBySeconds: int(latestSemverCreated.Sub(digestDetails.Created).Seconds()),
+				IsLatestSemver: digest == latestSemverDigest,
 
 				IssuesCriticalCount: issuesCritical,
 				IssuesHighCount:     issuesHigh,
@@ -56,11 +56,19 @@ func GenerateImageReports(inventory inventory.Inventory, runID uuid.UUID) map[st
 				IssuesLowCount:      issuesLow,
 				IssuesUnknownCount:  issuesUnknown,
 
-				Sources: digestDetails.Sources,
-				Issues:  digestDetails.Issues,
+				TotalIssuesCount: len(digestDetails.Issues),
+
+				Issues: digestDetails.Issues,
+			}
+
+			for _, source := range digestDetails.Sources {
+				if source.Type != sourcesapi.RegistryLatestSemverSourceType {
+					report.Sources = append(report.Sources, source)
+				}
 			}
 
 			if latestSemverTag != "" {
+				report.OutOfDateBySeconds = int(latestSemverCreated.Sub(digestDetails.Created).Seconds())
 				report.LatestIssuesCriticalCount = latestIssuesCritical
 				report.LatestIssuesHighCount = latestIssuesHigh
 				report.LatestIssuesMediumCount = latestIssuesMedium

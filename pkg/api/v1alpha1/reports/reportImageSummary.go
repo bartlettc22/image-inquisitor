@@ -29,6 +29,7 @@ type ImageSummary struct {
 	IssuesMediumCount                  int       `json:"issues_medium_count" yaml:"issuesMediumCount"`
 	IssuesLowCount                     int       `json:"issues_low_count" yaml:"issuesLowCount"`
 	IssuesUnknownCount                 int       `json:"issues_unknown_count" yaml:"issuesUnknownCount"`
+	TotalIssuesCount                   int       `json:"total_issues_count" yaml:"totalIssuesCount"`
 	LatestIssuesCriticalCount          int       `json:"latest_issues_critical_count" yaml:"latestIssuesCriticalCount"`
 	LatestIssuesHighCount              int       `json:"latest_issues_high_count" yaml:"latestIssuesHighCount"`
 	LatestIssuesMediumCount            int       `json:"latest_issues_medium_count" yaml:"latestIssuesMediumCount"`

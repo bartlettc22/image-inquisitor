@@ -28,15 +28,15 @@ type ImageIssues []*ImageIssue
 
 // ImageIssue is a issue found by Trivy
 type ImageIssue struct {
-	Type            IssueType  `json:"type" yaml:"type"`
-	Title           string     `json:"title" yaml:"title"`
-	Severity        Severity   `json:"severity" yaml:"severity"`
-	VulnerabilityID string     `json:"vulnerability_id,omitempty" yaml:"vulnerabilityID,omitempty"`
-	PkgID           string     `json:"pkg_id,omitempty" yaml:"pkgID,omitempty"`
-	PrimaryURL      string     `json:"primary_url,omitempty" yaml:"primaryURL,omitempty"`
-	Description     string     `json:"description,omitempty" yaml:"description,omitempty"`
-	NvdV3Score      float64    `json:"nvd_v3_score,omitempty" yaml:"nvdV3Score,omitempty"`
-	PublishedDate   *time.Time `json:"published_date,omitempty" yaml:"publishedDate,omitempty"`
+	Type            IssueType `json:"type" yaml:"type"`
+	Title           string    `json:"title" yaml:"title"`
+	Severity        Severity  `json:"severity" yaml:"severity"`
+	VulnerabilityID string    `json:"vulnerability_id,omitempty" yaml:"vulnerabilityID,omitempty"`
+	PkgID           string    `json:"pkg_id,omitempty" yaml:"pkgID,omitempty"`
+	PrimaryURL      string    `json:"primary_url,omitempty" yaml:"primaryURL,omitempty"`
+	// Description     string     `json:"description,omitempty" yaml:"description,omitempty"`
+	NvdV3Score    float64    `json:"nvd_v3_score,omitempty" yaml:"nvdV3Score,omitempty"`
+	PublishedDate *time.Time `json:"published_date,omitempty" yaml:"publishedDate,omitempty"`
 }
 
 func mustParseSeverity(severity string) Severity {
@@ -77,9 +77,9 @@ func parseReport(trivyReport *trivyTypes.Report) ImageIssues {
 					PkgID:           vulnerability.PkgID,
 					PrimaryURL:      vulnerability.PrimaryURL,
 					Title:           vulnerability.Title,
-					Description:     vulnerability.Description,
-					NvdV3Score:      nvdScore,
-					PublishedDate:   vulnerability.PublishedDate,
+					// Description:     vulnerability.Description,
+					NvdV3Score:    nvdScore,
+					PublishedDate: vulnerability.PublishedDate,
 				})
 			}
 			for _, secret := range vulnResults.Secrets {

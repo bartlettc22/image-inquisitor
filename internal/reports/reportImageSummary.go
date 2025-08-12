@@ -60,6 +60,7 @@ func GenerateImageSummaryReport(inventory inventory.Inventory, runID uuid.UUID) 
 							LatestIssuesMediumCount:   latestIssuesMedium,
 							LatestIssuesLowCount:      latestIssuesLow,
 							LatestIssuesUnknownCount:  latestIssuesUnknown,
+							TotalIssuesCount:          len(digestDetails.Issues),
 						}
 
 						if !latestSemverCreated.IsZero() {
@@ -73,11 +74,13 @@ func GenerateImageSummaryReport(inventory inventory.Inventory, runID uuid.UUID) 
 						summary.IssuesLowCount = issuesLow
 						summary.IssuesUnknownCount = issuesUnknown
 
-						summary.IssuesCriticalChangeByLatestSemver = latestIssuesCritical - issuesCritical
-						summary.IssuesHighChangeByLatestSemver = latestIssuesHigh - issuesHigh
-						summary.IssuesMediumChangeByLatestSemver = latestIssuesMedium - issuesMedium
-						summary.IssuesLowChangeByLatestSemver = latestIssuesLow - issuesLow
-						summary.IssuesUnknownChangeByLatestSemver = latestIssuesUnknown - issuesUnknown
+						if latestSemverDigest != "" {
+							summary.IssuesCriticalChangeByLatestSemver = latestIssuesCritical - issuesCritical
+							summary.IssuesHighChangeByLatestSemver = latestIssuesHigh - issuesHigh
+							summary.IssuesMediumChangeByLatestSemver = latestIssuesMedium - issuesMedium
+							summary.IssuesLowChangeByLatestSemver = latestIssuesLow - issuesLow
+							summary.IssuesUnknownChangeByLatestSemver = latestIssuesUnknown - issuesUnknown
+						}
 
 						if digest == latestSemverDigest {
 							summary.IsLatestSemver = true
