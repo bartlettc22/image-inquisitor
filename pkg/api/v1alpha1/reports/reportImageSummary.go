@@ -7,7 +7,7 @@ const (
 	ReportImageSummaryKind ReportKind = "ImageSummaryReport"
 )
 
-// ReportSuReportImageSummary is a summary report
+// ReportImageSummary is a summary report
 type ReportImageSummary []*ImageSummary
 
 // ImageSummary is a summary of an image

@@ -13,7 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func GenerateImageSummaryReport(inventory inventory.Inventory, runID uuid.UUID) *metadata.Manifest {
+func GenerateImageSummaryReport(inventory inventory.Inventory, runID uuid.UUID) map[string]*metadata.Manifest {
 
 	report := reportsapi.ReportImageSummary{}
 	for _, imageRefPrefixDetails := range inventory {
@@ -91,7 +91,9 @@ func GenerateImageSummaryReport(inventory inventory.Inventory, runID uuid.UUID) 
 		}
 	}
 
-	return reportsapi.NewReportManifest(reportsapi.ReportImageSummaryKind, runID.String(), report)
+	return map[string]*metadata.Manifest{
+		"": reportsapi.NewReportManifest(reportsapi.ReportImageSummaryKind, runID.String(), report),
+	}
 }
 
 func fetchRefSummary(report reportsapi.ReportImageSummary, ref string) *reportsapi.ImageSummary {
@@ -103,7 +105,7 @@ func fetchRefSummary(report reportsapi.ReportImageSummary, ref string) *reportsa
 	return nil
 }
 
-func IssuesBySeverity(issues *trivy.ImageIssues) (int, int, int, int, int) {
+func IssuesBySeverity(issues trivy.ImageIssues) (int, int, int, int, int) {
 
 	critical := 0
 	high := 0
@@ -111,50 +113,18 @@ func IssuesBySeverity(issues *trivy.ImageIssues) (int, int, int, int, int) {
 	low := 0
 	unknown := 0
 
-	if issues != nil {
-		for _, issue := range issues.Vulnerabilities {
-			switch issue.Severity {
-			case trivy.Critical:
-				critical++
-			case trivy.High:
-				high++
-			case trivy.Medium:
-				medium++
-			case trivy.Low:
-				low++
-			case trivy.Unknown:
-				unknown++
-			}
-		}
-
-		for _, issue := range issues.Secrets {
-			switch issue.Severity {
-			case trivy.Critical:
-				critical++
-			case trivy.High:
-				high++
-			case trivy.Medium:
-				medium++
-			case trivy.Low:
-				low++
-			case trivy.Unknown:
-				unknown++
-			}
-		}
-
-		for _, issue := range issues.Misconfigurations {
-			switch issue.Severity {
-			case trivy.Critical:
-				critical++
-			case trivy.High:
-				high++
-			case trivy.Medium:
-				medium++
-			case trivy.Low:
-				low++
-			case trivy.Unknown:
-				unknown++
-			}
+	for _, issue := range issues {
+		switch issue.Severity {
+		case trivy.SeverityCritical:
+			critical++
+		case trivy.SeverityHigh:
+			high++
+		case trivy.SeverityMedium:
+			medium++
+		case trivy.SeverityLow:
+			low++
+		case trivy.SeverityUnknown:
+			unknown++
 		}
 	}
 

@@ -37,7 +37,7 @@ type InventoryImageDigests map[string]*InventoryDigestDetails
 type InventoryDigestDetails struct {
 	Created time.Time            `yaml:"created" json:"created"`
 	Sources []*sourcesapi.Source `yaml:"sources" json:"sources"`
-	Issues  *trivy.ImageIssues   `yaml:"issues,omitempty" json:"issues,omitempty"`
+	Issues  trivy.ImageIssues    `yaml:"issues,omitempty" json:"issues,omitempty"`
 }
 
 type InventoryConfig struct {
@@ -81,6 +81,12 @@ func (i *InventoryGenerator) AddSource(source *sourcesapi.Source) {
 	}
 	if slices.Contains(i.config.SkipRegistries, image.Registry()) {
 		log.Debugf("skipping image due to registry: %s", source.ImageReference)
+		return
+	}
+
+	// Ignore Istio placeholder images
+	if source.ImageReference == "index.docker.io/library/auto:latest" {
+		log.Debugf("skipping image due to Istio placeholder image: %s", source.ImageReference)
 		return
 	}
 

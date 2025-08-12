@@ -44,6 +44,8 @@ func ParseReportType(reportType string) (reportsapi.ReportKind, error) {
 		return reportsapi.ReportImageSummaryKind, nil
 	case reportsapi.ReportRunKind.String():
 		return reportsapi.ReportRunKind, nil
+	case reportsapi.ReportImageKind.String():
+		return reportsapi.ReportImageKind, nil
 	default:
 		return "", fmt.Errorf("invalid report type: %s", reportType)
 	}
@@ -119,52 +121,58 @@ func (rg *ReportGenerator) SetRunStats(runID uuid.UUID, started time.Time, finis
 
 func (rg *ReportGenerator) Generate(inventory inventory.Inventory) error {
 	for _, reportType := range rg.reportTypes {
-		var report *metadata.Manifest
+		var reports map[string]*metadata.Manifest
 		var err error
 
 		svcLog.Infof("generating report: %s", reportType)
 		switch reportType {
 		case reportsapi.ReportInventoryKind:
-			report = GenerateInventoryReport(inventory, rg.runID)
+			reports = GenerateInventoryReport(inventory, rg.runID)
 		case reportsapi.ReportSummaryKind:
-			report = GenerateSummaryReport(inventory, rg.runID)
+			reports = GenerateSummaryReport(inventory, rg.runID)
 		case reportsapi.ReportImageSummaryKind:
-			report = GenerateImageSummaryReport(inventory, rg.runID)
+			reports = GenerateImageSummaryReport(inventory, rg.runID)
 		case reportsapi.ReportRunKind:
-			report = GenerateRunReport(inventory, rg.runID, rg.started, rg.finished)
+			reports = GenerateRunReport(inventory, rg.runID, rg.started, rg.finished)
+		case reportsapi.ReportImageKind:
+			reports = GenerateImageReports(inventory, rg.runID)
 		default:
 			return fmt.Errorf("invalid report type: %s", reportType)
 		}
 
-		reportFileName := fmt.Sprintf("%s.json", reportType)
-		var reportBytes []byte
-		switch rg.reportFormat {
-		case ReportFormatJSON:
-			reportBytes, err = json.Marshal(report)
-			if err != nil {
-				return err
+		for ref, report := range reports {
+			reportFileName := fmt.Sprintf("%s.json", reportType)
+			if ref != "" {
+				reportFileName = fmt.Sprintf("%s.%s.json", ref, reportType)
 			}
-		case ReportFormatYAML:
-			reportBytes, err = yaml.Marshal(report)
-			if err != nil {
-				return err
+			var reportBytes []byte
+			switch rg.reportFormat {
+			case ReportFormatJSON:
+				reportBytes, err = json.Marshal(report)
+				if err != nil {
+					return err
+				}
+			case ReportFormatYAML:
+				reportBytes, err = yaml.Marshal(report)
+				if err != nil {
+					return err
+				}
+				reportFileName = fmt.Sprintf("%s.yaml", reportType)
+			case ReportFormatSimplifiedJSON:
+				reportSimplified := SimplifiedManifest(report)
+				reportBytes, err = json.Marshal(reportSimplified)
+				if err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("invalid report format: %s", rg.reportFormat)
 			}
-			reportFileName = fmt.Sprintf("%s.yaml", reportType)
-		case ReportFormatSimplifiedJSON:
-			reportSimplified := SimplifiedManifest(report)
-			reportBytes, err = json.Marshal(reportSimplified)
-			if err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("invalid report format: %s", rg.reportFormat)
-		}
 
-		// for _, reportDestination := range rg.reportDestinations {
-		svcLog.Infof("outputting report to: %s", rg.reportWriter.Location())
-		err = rg.reportWriter.WriteReport(reportFileName, reportBytes)
-		if err != nil {
-			return err
+			svcLog.Infof("outputting report '%s' to: %s", reportFileName, rg.reportWriter.Location())
+			err = rg.reportWriter.WriteReport(reportFileName, reportBytes)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func GenerateRunReport(inventory inventory.Inventory, runID uuid.UUID, started time.Time, finished time.Time) *metadata.Manifest {
+func GenerateRunReport(inventory inventory.Inventory, runID uuid.UUID, started time.Time, finished time.Time) map[string]*metadata.Manifest {
 
 	report := &reportsapi.ReportRun{
 		RunID:           runID.String(),
@@ -18,5 +18,7 @@ func GenerateRunReport(inventory inventory.Inventory, runID uuid.UUID, started t
 		DurationSeconds: int(finished.Sub(started).Seconds()),
 	}
 
-	return reportsapi.NewReportManifest(reportsapi.ReportRunKind, runID.String(), report)
+	return map[string]*metadata.Manifest{
+		"": reportsapi.NewReportManifest(reportsapi.ReportRunKind, runID.String(), report),
+	}
 }

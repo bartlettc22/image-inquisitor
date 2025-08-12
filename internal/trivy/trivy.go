@@ -49,7 +49,7 @@ func NewTrivyScanner(config *TrivyScannerConfig) (*TrivyScanner, error) {
 type TrivyScanImageCallbackResult struct {
 	RefPrefix string
 	Digest    string
-	Issues    *ImageIssues
+	Issues    ImageIssues
 }
 
 func (tr *TrivyScanner) ScanImageDigestWithCallback(referencePrefix string, digest string, callback func(result interface{}, err error)) {

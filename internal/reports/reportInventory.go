@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
-func GenerateInventoryReport(inventory inventory.Inventory, runID uuid.UUID) *metadata.Manifest {
-	return reportsapi.NewReportManifest(reportsapi.ReportInventoryKind, runID.String(), inventory)
+func GenerateInventoryReport(inventory inventory.Inventory, runID uuid.UUID) map[string]*metadata.Manifest {
+	return map[string]*metadata.Manifest{
+		"": reportsapi.NewReportManifest(reportsapi.ReportInventoryKind, runID.String(), inventory),
+	}
 }

@@ -9,66 +9,58 @@ import (
 // Severity is a string representation of a Trivy severity
 type Severity string
 
+// IssueType is a string representation of a Trivy issue type
+type IssueType string
+
 const (
-	Critical Severity = "CRITICAL"
-	High     Severity = "HIGH"
-	Medium   Severity = "MEDIUM"
-	Low      Severity = "LOW"
-	Unknown  Severity = "UNKNOWN"
+	SeverityCritical Severity = "CRITICAL"
+	SeverityHigh     Severity = "HIGH"
+	SeverityMedium   Severity = "MEDIUM"
+	SeverityLow      Severity = "LOW"
+	SeverityUnknown  Severity = "UNKNOWN"
+
+	IssueTypeVulnerability    IssueType = "VULNERABILITY"
+	IssueTypeSecret           IssueType = "SECRET"
+	IssueTypeMisconfiguration IssueType = "MISCONFIGURATION"
 )
 
-// ImageIssues is a list of issues found by Trivy
-type ImageIssues struct {
-	Misconfigurations []*ImageIssueMisconfiguration `json:"misconfigurations,omitempty" yaml:"misconfigurations,omitempty"`
-	Vulnerabilities   []*ImageIssueVulnerability    `json:"vulnerabilities,omitempty" yaml:"vulnerabilities,omitempty"`
-	Secrets           []*ImageIssueSecret           `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-}
+type ImageIssues []*ImageIssue
 
-// ImageIssueMisconfiguration is a misconfiguration issue found by Trivy
-type ImageIssueMisconfiguration struct {
-	Title    string   `json:"title" yaml:"title"`
-	Severity Severity `json:"severity" yaml:"severity"`
-}
-
-// ImageIssueVulnerability is a vulnerability issue found by Trivy
-type ImageIssueVulnerability struct {
-	VulnerabilityID string     `json:"vulnerabilityID" yaml:"vulnerabilityID"`
-	Severity        Severity   `json:"severity" yaml:"severity"`
-	PkgID           string     `json:"pkgID" yaml:"pkgID"`
-	PrimaryURL      string     `json:"primaryURL" yaml:"primaryURL"`
+// ImageIssue is a issue found by Trivy
+type ImageIssue struct {
+	Type            IssueType  `json:"type" yaml:"type"`
 	Title           string     `json:"title" yaml:"title"`
-	Description     string     `json:"description" yaml:"description"`
-	NvdV3Score      float64    `json:"nvdV3Score" yaml:"nvdV3Score"`
-	PublishedDate   *time.Time `json:"publishedDate" yaml:"publishedDate"`
-}
-
-// ImageIssueSecret is a secret issue found by Trivy
-type ImageIssueSecret struct {
-	Title    string   `json:"title " yaml:"title"`
-	Severity Severity `json:"severity" yaml:"severity"`
+	Severity        Severity   `json:"severity" yaml:"severity"`
+	VulnerabilityID string     `json:"vulnerability_id,omitempty" yaml:"vulnerabilityID,omitempty"`
+	PkgID           string     `json:"pkg_id,omitempty" yaml:"pkgID,omitempty"`
+	PrimaryURL      string     `json:"primary_url,omitempty" yaml:"primaryURL,omitempty"`
+	Description     string     `json:"description,omitempty" yaml:"description,omitempty"`
+	NvdV3Score      float64    `json:"nvd_v3_score,omitempty" yaml:"nvdV3Score,omitempty"`
+	PublishedDate   *time.Time `json:"published_date,omitempty" yaml:"publishedDate,omitempty"`
 }
 
 func mustParseSeverity(severity string) Severity {
 	switch severity {
 	case "LOW":
-		return Low
+		return SeverityLow
 	case "MEDIUM":
-		return Medium
+		return SeverityMedium
 	case "HIGH":
-		return High
+		return SeverityHigh
 	case "CRITICAL":
-		return Critical
+		return SeverityCritical
 	default:
-		return Unknown
+		return SeverityUnknown
 	}
 }
 
-func parseReport(trivyReport *trivyTypes.Report) *ImageIssues {
-	issues := &ImageIssues{}
+func parseReport(trivyReport *trivyTypes.Report) ImageIssues {
+	var issues ImageIssues
 	if trivyReport != nil {
 		for _, vulnResults := range trivyReport.Results {
 			for _, misconfiguration := range vulnResults.Misconfigurations {
-				issues.Misconfigurations = append(issues.Misconfigurations, &ImageIssueMisconfiguration{
+				issues = append(issues, &ImageIssue{
+					Type:     IssueTypeMisconfiguration,
 					Title:    misconfiguration.Title,
 					Severity: mustParseSeverity(misconfiguration.Severity),
 				})
@@ -78,7 +70,8 @@ func parseReport(trivyReport *trivyTypes.Report) *ImageIssues {
 				if nvd, ok := vulnerability.CVSS["nvd"]; ok {
 					nvdScore = nvd.V3Score
 				}
-				issues.Vulnerabilities = append(issues.Vulnerabilities, &ImageIssueVulnerability{
+				issues = append(issues, &ImageIssue{
+					Type:            IssueTypeVulnerability,
 					VulnerabilityID: vulnerability.VulnerabilityID,
 					Severity:        mustParseSeverity(vulnerability.Severity),
 					PkgID:           vulnerability.PkgID,
@@ -90,7 +83,8 @@ func parseReport(trivyReport *trivyTypes.Report) *ImageIssues {
 				})
 			}
 			for _, secret := range vulnResults.Secrets {
-				issues.Secrets = append(issues.Secrets, &ImageIssueSecret{
+				issues = append(issues, &ImageIssue{
+					Type:     IssueTypeSecret,
 					Title:    secret.Title,
 					Severity: mustParseSeverity(secret.Severity),
 				})

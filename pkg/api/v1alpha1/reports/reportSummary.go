@@ -13,6 +13,7 @@ type ReportSummary struct {
 	DigestCount           int `json:"digest_count" yaml:"digestCount"`
 	KubernetesSourceCount int `json:"kubernetes_source_count" yaml:"kubernetesSourceCount"`
 	FileSourceCount       int `json:"file_source_count" yaml:"fileSourceCount"`
+	TotalIssuesCount      int `json:"total_issues_count" yaml:"totalIssuesCount"`
 	IssuesCriticalCount   int `json:"issues_critical_count" yaml:"issuesCriticalCount"`
 	IssuesHighCount       int `json:"issues_high_count" yaml:"issuesHighCount"`
 	IssuesMediumCount     int `json:"issues_medium_count" yaml:"issuesMediumCount"`

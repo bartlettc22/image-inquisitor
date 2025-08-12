@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func GenerateSummaryReport(inventory inventory.Inventory, runID uuid.UUID) *metadata.Manifest {
+func GenerateSummaryReport(inventory inventory.Inventory, runID uuid.UUID) map[string]*metadata.Manifest {
 
 	report := &reportsapi.ReportSummary{}
 	if inventory != nil {
@@ -27,17 +27,17 @@ func GenerateSummaryReport(inventory inventory.Inventory, runID uuid.UUID) *meta
 				}
 
 				if digestDetails.Issues != nil {
-					for _, issue := range digestDetails.Issues.Vulnerabilities {
+					for _, issue := range digestDetails.Issues {
 						switch issue.Severity {
-						case trivy.Critical:
+						case trivy.SeverityCritical:
 							report.IssuesCriticalCount++
-						case trivy.High:
+						case trivy.SeverityHigh:
 							report.IssuesHighCount++
-						case trivy.Medium:
+						case trivy.SeverityMedium:
 							report.IssuesMediumCount++
-						case trivy.Low:
+						case trivy.SeverityLow:
 							report.IssuesLowCount++
-						case trivy.Unknown:
+						case trivy.SeverityUnknown:
 							report.IssuesUnknownCount++
 						}
 					}
@@ -46,5 +46,7 @@ func GenerateSummaryReport(inventory inventory.Inventory, runID uuid.UUID) *meta
 		}
 	}
 
-	return reportsapi.NewReportManifest(reportsapi.ReportSummaryKind, runID.String(), report)
+	return map[string]*metadata.Manifest{
+		"": reportsapi.NewReportManifest(reportsapi.ReportSummaryKind, runID.String(), report),
+	}
 }

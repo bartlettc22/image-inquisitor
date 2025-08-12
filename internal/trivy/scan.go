@@ -12,7 +12,7 @@ import (
 )
 
 // Scan runs Trivy on an image and returns the results
-func Scan(ref string, outputdir string) (*ImageIssues, error) {
+func Scan(ref string, outputdir string) (ImageIssues, error) {
 	log.WithField("ref", ref).Debug("running Trivy scan")
 
 	// Prepare the output file name
