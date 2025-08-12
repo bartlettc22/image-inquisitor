@@ -9,8 +9,6 @@ import (
 // LatestSemanticVersionStr returns the latest semantic version string
 // from a list of strings. If no versions are found, returns an empty string.
 //
-// Requires that the version strings are semver-compatible and have 3 "." characters.
-//
 // Does not consider pre-release versions.
 func LatestSemanticVersionStr(versions []string) string {
 	var latestSemver *semver.Version
@@ -23,14 +21,14 @@ func LatestSemanticVersionStr(versions []string) string {
 			continue
 		}
 
-		// Must have 3 places
-		// quay.io for example has tags like '608111629' which will evaluate to '608111629.0.0'
-		if len(strings.Split(v, ".")) != 3 {
+		// Skip pre-releases
+		if version.Prerelease() != "" {
 			continue
 		}
 
-		// Skip pre-releases
-		if version.Prerelease() != "" {
+		// Must have at least 2-3 places
+		// For example has tags like '608111629' will not be considered
+		if len(strings.Split(v, ".")) < 2 {
 			continue
 		}
 

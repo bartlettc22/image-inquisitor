@@ -85,7 +85,7 @@ func (i *InventoryGenerator) AddSource(source *sourcesapi.Source) {
 	}
 
 	// Ignore Istio placeholder images
-	if source.ImageReference == "index.docker.io/library/auto:latest" {
+	if image.NormalizedRef() == "index.docker.io/library/auto:latest" {
 		log.Debugf("skipping image due to Istio placeholder image: %s", source.ImageReference)
 		return
 	}

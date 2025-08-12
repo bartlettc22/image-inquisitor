@@ -30,7 +30,16 @@ func TestLatestSemanticVersion(t *testing.T) {
 			},
 			"v1.3.3",
 		},
-		// Ensure that versions without 3 "." aren't automatically expanded
+		// 2 places
+		{
+			[]string{
+				"v1.2.3",
+				"v1.3",
+				"latest",
+			},
+			"v1.3",
+		},
+		// Ensure that versions without 2 "." aren't automatically expanded
 		// i.e. 608111629 does not count as 608111629.0.0
 		{
 			[]string{

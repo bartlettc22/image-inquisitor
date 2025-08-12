@@ -56,14 +56,21 @@ func GenerateImageReports(inventory inventory.Inventory, runID uuid.UUID) map[st
 				IssuesLowCount:      issuesLow,
 				IssuesUnknownCount:  issuesUnknown,
 
-				IssuesCriticalChangeByLatestSemver: latestIssuesCritical - issuesCritical,
-				IssuesHighChangeByLatestSemver:     latestIssuesHigh - issuesHigh,
-				IssuesMediumChangeByLatestSemver:   latestIssuesMedium - issuesMedium,
-				IssuesLowChangeByLatestSemver:      latestIssuesLow - issuesLow,
-				IssuesUnknownChangeByLatestSemver:  latestIssuesUnknown - issuesUnknown,
-
 				Sources: digestDetails.Sources,
 				Issues:  digestDetails.Issues,
+			}
+
+			if latestSemverTag != "" {
+				report.LatestIssuesCriticalCount = latestIssuesCritical
+				report.LatestIssuesHighCount = latestIssuesHigh
+				report.LatestIssuesMediumCount = latestIssuesMedium
+				report.LatestIssuesLowCount = latestIssuesLow
+				report.LatestIssuesUnknownCount = latestIssuesUnknown
+				report.IssuesCriticalChangeByLatestSemver = latestIssuesCritical - issuesCritical
+				report.IssuesHighChangeByLatestSemver = latestIssuesHigh - issuesHigh
+				report.IssuesMediumChangeByLatestSemver = latestIssuesMedium - issuesMedium
+				report.IssuesLowChangeByLatestSemver = latestIssuesLow - issuesLow
+				report.IssuesUnknownChangeByLatestSemver = latestIssuesUnknown - issuesUnknown
 			}
 
 			reports[ref] = report

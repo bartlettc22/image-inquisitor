@@ -52,7 +52,8 @@ func (t *kubernetesTask) Run(workerID int) worker.Result {
 				if owner.Kind == "ReplicaSet" ||
 					owner.Kind == "StatefulSet" ||
 					owner.Kind == "DaemonSet" ||
-					owner.Kind == "Job" {
+					owner.Kind == "Job" ||
+					owner.Kind == "CronJob" {
 					ownedByStdResource = true
 					break
 				}
