@@ -16,27 +16,27 @@ type ImageSummary struct {
 	Tag                                string    `json:"tag" yaml:"tag"`
 	Digest                             string    `json:"digest" yaml:"digest"`
 	Created                            time.Time `json:"created" yaml:"created"`
-	AgeSeconds                         int       `json:"ageSeconds" yaml:"ageSeconds"`
-	SourceCount                        int       `json:"sourceCount" yaml:"sourceCount"`
-	IsLatestSemver                     bool      `json:"isLatestSemver" yaml:"isLatestSemver"`
-	LatestSemverTag                    string    `json:"latestSemverTag" yaml:"latestSemverTag"`
-	LatestSemverDigest                 string    `json:"latestSemverDigest" yaml:"latestSemverDigest"`
-	LatestSemverCreated                time.Time `json:"latestSemverCreated" yaml:"latestSemverCreated"`
-	LatestSemverAgeSeconds             int       `json:"latestSemverAgeSeconds" yaml:"latestSemverAgeSeconds"`
-	OutOfDateBySeconds                 int       `json:"outOfDateBySeconds" yaml:"outOfDateBySeconds"`
-	IssuesCriticalCount                int       `json:"issuesCriticalCount" yaml:"issuesCriticalCount"`
-	IssuesHighCount                    int       `json:"issuesHighCount" yaml:"issuesHighCount"`
-	IssuesMediumCount                  int       `json:"issuesMediumCount" yaml:"issuesMediumCount"`
-	IssuesLowCount                     int       `json:"issuesLowCount" yaml:"issuesLowCount"`
-	IssuesUnknownCount                 int       `json:"issuesUnknownCount" yaml:"issuesUnknownCount"`
-	LatestIssuesCriticalCount          int       `json:"latestIssuesCriticalCount" yaml:"latestIssuesCriticalCount"`
-	LatestIssuesHighCount              int       `json:"latestIssuesHighCount" yaml:"latestIssuesHighCount"`
-	LatestIssuesMediumCount            int       `json:"latestIssuesMediumCount" yaml:"latestIssuesMediumCount"`
-	LatestIssuesLowCount               int       `json:"latestIssuesLowCount" yaml:"latestIssuesLowCount"`
-	LatestIssuesUnknownCount           int       `json:"latestIssuesUnknownCount" yaml:"latestIssuesUnknownCount"`
-	IssuesCriticalChangeByLatestSemver int       `json:"issuesCriticalChangeByLatestSemver" yaml:"issuesCriticalChangeByLatestSemver"`
-	IssuesHighChangeByLatestSemver     int       `json:"issuesHighChangeByLatestSemver" yaml:"issuesHighChangeByLatestSemver"`
-	IssuesMediumChangeByLatestSemver   int       `json:"issuesMediumChangeByLatestSemver" yaml:"issuesMediumChangeByLatestSemver"`
-	IssuesLowChangeByLatestSemver      int       `json:"issuesLowChangeByLatestSemver" yaml:"issuesLowChangeByLatestSemver"`
-	IssuesUnknownChangeByLatestSemver  int       `json:"issuesUnknownChangeByLatestSemver" yaml:"issuesUnknownChangeByLatestSemver"`
+	AgeSeconds                         int       `json:"age_seconds" yaml:"ageSeconds"`
+	SourceCount                        int       `json:"source_count" yaml:"sourceCount"`
+	IsLatestSemver                     bool      `json:"is_latest_semver" yaml:"isLatestSemver"`
+	LatestSemverTag                    string    `json:"latest_semver_tag" yaml:"latestSemverTag"`
+	LatestSemverDigest                 string    `json:"latest_semver_digest" yaml:"latestSemverDigest"`
+	LatestSemverCreated                time.Time `json:"latest_semver_created" yaml:"latestSemverCreated"`
+	LatestSemverAgeSeconds             int       `json:"latest_semver_age_seconds" yaml:"latestSemverAgeSeconds"`
+	OutOfDateBySeconds                 int       `json:"out_of_date_by_seconds" yaml:"outOfDateBySeconds"`
+	IssuesCriticalCount                int       `json:"issues_critical_count" yaml:"issuesCriticalCount"`
+	IssuesHighCount                    int       `json:"issues_high_count" yaml:"issuesHighCount"`
+	IssuesMediumCount                  int       `json:"issues_medium_count" yaml:"issuesMediumCount"`
+	IssuesLowCount                     int       `json:"issues_low_count" yaml:"issuesLowCount"`
+	IssuesUnknownCount                 int       `json:"issues_unknown_count" yaml:"issuesUnknownCount"`
+	LatestIssuesCriticalCount          int       `json:"latest_issues_critical_count" yaml:"latestIssuesCriticalCount"`
+	LatestIssuesHighCount              int       `json:"latest_issues_high_count" yaml:"latestIssuesHighCount"`
+	LatestIssuesMediumCount            int       `json:"latest_issues_medium_count" yaml:"latestIssuesMediumCount"`
+	LatestIssuesLowCount               int       `json:"latest_issues_low_count" yaml:"latestIssuesLowCount"`
+	LatestIssuesUnknownCount           int       `json:"latest_issues_unknown_count" yaml:"latestIssuesUnknownCount"`
+	IssuesCriticalChangeByLatestSemver int       `json:"issues_critical_change_by_latest_semver" yaml:"issuesCriticalChangeByLatestSemver"`
+	IssuesHighChangeByLatestSemver     int       `json:"issues_high_change_by_latest_semver" yaml:"issuesHighChangeByLatestSemver"`
+	IssuesMediumChangeByLatestSemver   int       `json:"issues_medium_change_by_latest_semver" yaml:"issuesMediumChangeByLatestSemver"`
+	IssuesLowChangeByLatestSemver      int       `json:"issues_low_change_by_latest_semver" yaml:"issuesLowChangeByLatestSemver"`
+	IssuesUnknownChangeByLatestSemver  int       `json:"issues_unknown_change_by_latest_semver" yaml:"issuesUnknownChangeByLatestSemver"`
 }

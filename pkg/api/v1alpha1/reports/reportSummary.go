@@ -9,13 +9,13 @@ const (
 type ReportSummary struct {
 
 	// ImageCount is the number of
-	RepoCount             int `json:"repoCount,omitempty" yaml:"repoCount,omitempty"`
-	DigestCount           int `json:"digestCount,omitempty" yaml:"digestCount,omitempty"`
-	KubernetesSourceCount int `json:"kubernetesSourceCount,omitempty" yaml:"kubernetesSourceCount,omitempty"`
-	FileSourceCount       int `json:"fileSourceCount,omitempty" yaml:"fileSourceCount,omitempty"`
-	IssuesCriticalCount   int `json:"issuesCriticalCount,omitempty" yaml:"issuesCriticalCount,omitempty"`
-	IssuesHighCount       int `json:"issuesHighCount,omitempty" yaml:"issuesHighCount,omitempty"`
-	IssuesMediumCount     int `json:"issuesMediumCount,omitempty" yaml:"issuesMediumCount,omitempty"`
-	IssuesLowCount        int `json:"issuesLowCount,omitempty" yaml:"issuesLowCount,omitempty"`
-	IssuesUnknownCount    int `json:"issuesUnknownCount,omitempty" yaml:"issuesUnknownCount,omitempty"`
+	RepoCount             int `json:"repo_count" yaml:"repoCount"`
+	DigestCount           int `json:"digest_count" yaml:"digestCount"`
+	KubernetesSourceCount int `json:"kubernetes_source_count" yaml:"kubernetesSourceCount"`
+	FileSourceCount       int `json:"file_source_count" yaml:"fileSourceCount"`
+	IssuesCriticalCount   int `json:"issues_critical_count" yaml:"issuesCriticalCount"`
+	IssuesHighCount       int `json:"issues_high_count" yaml:"issuesHighCount"`
+	IssuesMediumCount     int `json:"issues_medium_count" yaml:"issuesMediumCount"`
+	IssuesLowCount        int `json:"issues_low_count" yaml:"issuesLowCount"`
+	IssuesUnknownCount    int `json:"issues_unknown_count" yaml:"issuesUnknownCount"`
 }

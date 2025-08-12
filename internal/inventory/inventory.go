@@ -2,9 +2,11 @@ package inventory
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
+	"github.com/bartlettc22/image-inquisitor/internal/registries"
 	"github.com/bartlettc22/image-inquisitor/internal/trivy"
 	callbackworker "github.com/bartlettc22/image-inquisitor/internal/worker/callback"
 	sourcesapi "github.com/bartlettc22/image-inquisitor/pkg/api/v1alpha1/sources"
@@ -39,6 +41,7 @@ type InventoryDigestDetails struct {
 }
 
 type InventoryConfig struct {
+	SkipRegistries              []string
 	LatestSemverScanningEnabled bool
 	SecurityScanningEnabled     bool
 	SecurityScanner             *trivy.TrivyScanner
@@ -69,6 +72,18 @@ func (i *InventoryGenerator) AddSources(sourceList sourcesapi.SourceList) {
 }
 
 func (i *InventoryGenerator) AddSource(source *sourcesapi.Source) {
+
+	// Ignore skipped registries
+	image, err := registries.NewImage(source.ImageReference)
+	if err != nil {
+		log.Errorf("error parsing image reference: %v", err)
+		return
+	}
+	if slices.Contains(i.config.SkipRegistries, image.Registry()) {
+		log.Debugf("skipping image due to registry: %s", source.ImageReference)
+		return
+	}
+
 	i.workerPoolWG.Add(1)
 	i.workerPool.AddTask(callbackworker.NewCallbackTask(
 		newAddSourceFunc(source),

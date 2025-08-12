@@ -46,6 +46,7 @@ func GenerateImageSummaryReport(inventory inventory.Inventory, runID uuid.UUID) 
 					if summary == nil {
 						summary = &reportsapi.ImageSummary{
 							Ref:                       noramalizedRef,
+							SourceCount:               1,
 							Tag:                       img.TagRef(),
 							Digest:                    digest,
 							Created:                   digestDetails.Created,
@@ -81,9 +82,10 @@ func GenerateImageSummaryReport(inventory inventory.Inventory, runID uuid.UUID) 
 						if digest == latestSemverDigest {
 							summary.IsLatestSemver = true
 						}
+						report = append(report, summary)
+					} else {
+						summary.SourceCount++
 					}
-					summary.SourceCount++
-					report = append(report, summary)
 				}
 			}
 		}

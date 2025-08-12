@@ -17,6 +17,7 @@ func SetRunFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("import-from", "", "", "Location (directory) of sources to import.  Should take the format <protocol>://<destination>. <protocol> can be one of 'gs' (Google Cloud Storage), or 'file'.")
 
 	// Scanning
+	cmd.PersistentFlags().StringSliceP("skip-registry", "", []string{}, "List of registries to skip when scanning")
 	cmd.PersistentFlags().BoolP("latest-semver-scan", "", true, "Scan image registry for latest semver tag")
 	cmd.PersistentFlags().BoolP("security-scan", "", true, "Whether to run security scan against images")
 

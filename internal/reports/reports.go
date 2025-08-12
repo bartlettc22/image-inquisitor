@@ -151,7 +151,7 @@ func (rg *ReportGenerator) Generate(inventory inventory.Inventory) error {
 			}
 			reportFileName = fmt.Sprintf("%s.yaml", reportType)
 		case ReportFormatSimplifiedJSON:
-			reportSimplified := SimplifiedManfiest(report)
+			reportSimplified := SimplifiedManifest(report)
 			reportBytes, err = json.Marshal(reportSimplified)
 			if err != nil {
 				return err
@@ -171,7 +171,7 @@ func (rg *ReportGenerator) Generate(inventory inventory.Inventory) error {
 	return nil
 }
 
-func SimplifiedManfiest(manifest *metadata.Manifest) any {
+func SimplifiedManifest(manifest *metadata.Manifest) any {
 	return &SimplifiedReport{
 		Metadata: &SimplifiedReportMetadata{
 			Version: manifest.Version,

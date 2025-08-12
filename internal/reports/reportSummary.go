@@ -26,18 +26,20 @@ func GenerateSummaryReport(inventory inventory.Inventory, runID uuid.UUID) *meta
 					}
 				}
 
-				for _, issue := range digestDetails.Issues.Vulnerabilities {
-					switch issue.Severity {
-					case trivy.Critical:
-						report.IssuesCriticalCount++
-					case trivy.High:
-						report.IssuesHighCount++
-					case trivy.Medium:
-						report.IssuesMediumCount++
-					case trivy.Low:
-						report.IssuesLowCount++
-					case trivy.Unknown:
-						report.IssuesUnknownCount++
+				if digestDetails.Issues != nil {
+					for _, issue := range digestDetails.Issues.Vulnerabilities {
+						switch issue.Severity {
+						case trivy.Critical:
+							report.IssuesCriticalCount++
+						case trivy.High:
+							report.IssuesHighCount++
+						case trivy.Medium:
+							report.IssuesMediumCount++
+						case trivy.Low:
+							report.IssuesLowCount++
+						case trivy.Unknown:
+							report.IssuesUnknownCount++
+						}
 					}
 				}
 			}

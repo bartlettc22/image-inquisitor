@@ -8,6 +8,7 @@ import (
 
 func InventoryGeneratorFromConfig() (*inventory.InventoryGenerator, error) {
 	inventoryConfig := &inventory.InventoryConfig{
+		SkipRegistries:              viper.GetStringSlice("skip-registry"),
 		LatestSemverScanningEnabled: viper.GetBool("latest-semver-scan"),
 		SecurityScanningEnabled:     viper.GetBool("security-scan"),
 	}
