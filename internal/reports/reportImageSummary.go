@@ -111,48 +111,50 @@ func IssuesBySeverity(issues *trivy.ImageIssues) (int, int, int, int, int) {
 	low := 0
 	unknown := 0
 
-	for _, issue := range issues.Vulnerabilities {
-		switch issue.Severity {
-		case trivy.Critical:
-			critical++
-		case trivy.High:
-			high++
-		case trivy.Medium:
-			medium++
-		case trivy.Low:
-			low++
-		case trivy.Unknown:
-			unknown++
+	if issues != nil {
+		for _, issue := range issues.Vulnerabilities {
+			switch issue.Severity {
+			case trivy.Critical:
+				critical++
+			case trivy.High:
+				high++
+			case trivy.Medium:
+				medium++
+			case trivy.Low:
+				low++
+			case trivy.Unknown:
+				unknown++
+			}
 		}
-	}
 
-	for _, issue := range issues.Secrets {
-		switch issue.Severity {
-		case trivy.Critical:
-			critical++
-		case trivy.High:
-			high++
-		case trivy.Medium:
-			medium++
-		case trivy.Low:
-			low++
-		case trivy.Unknown:
-			unknown++
+		for _, issue := range issues.Secrets {
+			switch issue.Severity {
+			case trivy.Critical:
+				critical++
+			case trivy.High:
+				high++
+			case trivy.Medium:
+				medium++
+			case trivy.Low:
+				low++
+			case trivy.Unknown:
+				unknown++
+			}
 		}
-	}
 
-	for _, issue := range issues.Misconfigurations {
-		switch issue.Severity {
-		case trivy.Critical:
-			critical++
-		case trivy.High:
-			high++
-		case trivy.Medium:
-			medium++
-		case trivy.Low:
-			low++
-		case trivy.Unknown:
-			unknown++
+		for _, issue := range issues.Misconfigurations {
+			switch issue.Severity {
+			case trivy.Critical:
+				critical++
+			case trivy.High:
+				high++
+			case trivy.Medium:
+				medium++
+			case trivy.Low:
+				low++
+			case trivy.Unknown:
+				unknown++
+			}
 		}
 	}
 
