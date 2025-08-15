@@ -28,14 +28,17 @@ publish-image: build-image
 	docker push $(DOCKER_IMAGE)
 
 .PHONY: dev-run
-dev-run: 
-	go run ./... \
-	--log-level=debug \
-	--log-json=true \
-	--image-source file \
-	--report-outputs=summary,summaryImageCombined,summaryRegistry,imageSummary,imageRegistry,imageVulnerabilities,imageKubernetes \
-	--include-kubernetes-namespaces=prometheus \
-	--image-source-file-path=$$(pwd)/test/images.txt
+dev-run:
+	go run ./... run \
+	--log-level debug \
+	--log-format json-indent \
+	--source-id testsrc \
+	--source file://test/integration/testdata/images-basic.txt \
+	--reports=InventoryReport \
+	--reports=SummaryReport \
+	--reports=ImageSummaryReport \
+	--reports=RunReport \
+	--report-location file://.reports/dev-run \
 
 .PHONY: dev-run-docker
 dev-run-docker: build-image
