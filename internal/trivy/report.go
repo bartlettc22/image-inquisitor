@@ -3,128 +3,94 @@ package trivy
 import (
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	trivyTypes "github.com/aquasecurity/trivy/pkg/types"
 )
 
-type TrivyReport map[string]*TrivyImageReport
+// Severity is a string representation of a Trivy severity
+type Severity string
 
-type TrivyImageReport struct {
-	ImageCreated time.Time    `json:"imageCreated"`
-	ImageIssues  *ImageIssues `json:"imageIssues"`
+// IssueType is a string representation of a Trivy issue type
+type IssueType string
+
+const (
+	SeverityCritical Severity = "CRITICAL"
+	SeverityHigh     Severity = "HIGH"
+	SeverityMedium   Severity = "MEDIUM"
+	SeverityLow      Severity = "LOW"
+	SeverityUnknown  Severity = "UNKNOWN"
+
+	IssueTypeVulnerability    IssueType = "VULNERABILITY"
+	IssueTypeSecret           IssueType = "SECRET"
+	IssueTypeMisconfiguration IssueType = "MISCONFIGURATION"
+)
+
+type ImageIssues []*ImageIssue
+
+// ImageIssue is a issue found by Trivy
+type ImageIssue struct {
+	Type            IssueType `json:"type" yaml:"type"`
+	Title           string    `json:"title" yaml:"title"`
+	Severity        Severity  `json:"severity" yaml:"severity"`
+	VulnerabilityID string    `json:"vulnerability_id,omitempty" yaml:"vulnerabilityID,omitempty"`
+	PkgID           string    `json:"pkg_id,omitempty" yaml:"pkgID,omitempty"`
+	PrimaryURL      string    `json:"primary_url,omitempty" yaml:"primaryURL,omitempty"`
+	// Description     string     `json:"description,omitempty" yaml:"description,omitempty"`
+	NvdV3Score    float64    `json:"nvd_v3_score,omitempty" yaml:"nvdV3Score,omitempty"`
+	PublishedDate *time.Time `json:"published_date,omitempty" yaml:"publishedDate,omitempty"`
 }
 
-type ImageIssues struct {
-	Total             *ImageIssueSeverity          `json:"total"`
-	Misconfigurations *ImageIssueMisconfigurations `json:"misconfigurations"`
-	Vulnerabilities   *ImageIssueVulnerabilities   `json:"vulnerabilities"`
-	Secrets           *ImageIssueSecrets           `json:"secrets"`
-}
-
-type ImageIssueMisconfigurations struct {
-	ImageIssueSeverity
-}
-
-type ImageIssueVulnerabilities struct {
-	ImageIssueSeverity
-	Vulnerabilities []*ImageIssueVulnerability `json:"vulnerabilities"`
-}
-
-type ImageIssueVulnerability struct {
-	VulnerabilityID string     `json:"registry"`
-	Severity        string     `json:"severity"`
-	PkgID           string     `json:"pkgID"`
-	PrimaryURL      string     `json:"primaryURL"`
-	Title           string     `json:"title"`
-	Description     string     `json:"description"`
-	NvdV3Score      float64    `json:"nvdV3Score"`
-	PublishedDate   *time.Time `json:"publishedDate"`
-}
-
-type ImageIssueSecrets struct {
-	ImageIssueSeverity
-}
-
-type IssueWithSeverity interface {
-	AddSeverityUnknown()
-	AddSeverityLow()
-	AddSeverityMedium()
-	AddSeverityHigh()
-	AddSeverityCritical()
-}
-
-type ImageIssueSeverity struct {
-	Unknown  int `json:"unknown"`
-	Low      int `json:"low"`
-	Medium   int `json:"medium"`
-	High     int `json:"high"`
-	Critical int `json:"critical"`
-}
-
-func (iis *ImageIssueSeverity) AddSeverity(severity string) {
+func mustParseSeverity(severity string) Severity {
 	switch severity {
 	case "LOW":
-		iis.Low++
+		return SeverityLow
 	case "MEDIUM":
-		iis.Medium++
+		return SeverityMedium
 	case "HIGH":
-		iis.High++
+		return SeverityHigh
 	case "CRITICAL":
-		iis.Critical++
+		return SeverityCritical
 	default:
-		iis.Unknown++
+		return SeverityUnknown
 	}
 }
 
-func formatReport(runResults RunResults) TrivyReport {
-	trivyReport := make(TrivyReport)
-	for _, r := range runResults {
-		if r.Err != nil {
-			log.Errorf("%v; %s", r.Err, r.Output)
-			continue
-		}
-		if r.Report != nil {
-			issues := &ImageIssues{
-				Misconfigurations: &ImageIssueMisconfigurations{},
-				Vulnerabilities:   &ImageIssueVulnerabilities{},
-				Secrets:           &ImageIssueSecrets{},
-				Total:             &ImageIssueSeverity{},
+func parseReport(trivyReport *trivyTypes.Report) ImageIssues {
+	var issues ImageIssues
+	if trivyReport != nil {
+		for _, vulnResults := range trivyReport.Results {
+			for _, misconfiguration := range vulnResults.Misconfigurations {
+				issues = append(issues, &ImageIssue{
+					Type:     IssueTypeMisconfiguration,
+					Title:    misconfiguration.Title,
+					Severity: mustParseSeverity(misconfiguration.Severity),
+				})
 			}
-
-			for _, vulnResults := range r.Report.Results {
-				for _, misconfiguration := range vulnResults.Misconfigurations {
-					issues.Misconfigurations.AddSeverity(misconfiguration.Severity)
-					issues.Total.AddSeverity(misconfiguration.Severity)
+			for _, vulnerability := range vulnResults.Vulnerabilities {
+				nvdScore := float64(0)
+				if nvd, ok := vulnerability.CVSS["nvd"]; ok {
+					nvdScore = nvd.V3Score
 				}
-				for _, vulnerability := range vulnResults.Vulnerabilities {
-					issues.Vulnerabilities.AddSeverity(vulnerability.Severity)
-					nvdScore := float64(0)
-					if nvd, ok := vulnerability.CVSS["nvd"]; ok {
-						nvdScore = nvd.V3Score
-					}
-					issues.Vulnerabilities.Vulnerabilities = append(issues.Vulnerabilities.Vulnerabilities, &ImageIssueVulnerability{
-						VulnerabilityID: vulnerability.VulnerabilityID,
-						Severity:        vulnerability.Severity,
-						PkgID:           vulnerability.PkgID,
-						PrimaryURL:      vulnerability.PrimaryURL,
-						Title:           vulnerability.Title,
-						Description:     vulnerability.Description,
-						NvdV3Score:      nvdScore,
-						PublishedDate:   vulnerability.PublishedDate,
-					})
-					issues.Total.AddSeverity(vulnerability.Severity)
-				}
-				for _, secret := range vulnResults.Secrets {
-					issues.Secrets.AddSeverity(secret.Severity)
-					issues.Total.AddSeverity(secret.Severity)
-				}
+				issues = append(issues, &ImageIssue{
+					Type:            IssueTypeVulnerability,
+					VulnerabilityID: vulnerability.VulnerabilityID,
+					Severity:        mustParseSeverity(vulnerability.Severity),
+					PkgID:           vulnerability.PkgID,
+					PrimaryURL:      vulnerability.PrimaryURL,
+					Title:           vulnerability.Title,
+					// Description:     vulnerability.Description,
+					NvdV3Score:    nvdScore,
+					PublishedDate: vulnerability.PublishedDate,
+				})
 			}
-
-			trivyReport[r.Image] = &TrivyImageReport{
-				ImageCreated: r.Report.Metadata.ImageConfig.Created.Time,
-				ImageIssues:  issues,
+			for _, secret := range vulnResults.Secrets {
+				issues = append(issues, &ImageIssue{
+					Type:     IssueTypeSecret,
+					Title:    secret.Title,
+					Severity: mustParseSeverity(secret.Severity),
+				})
 			}
 		}
 	}
 
-	return trivyReport
+	return issues
 }

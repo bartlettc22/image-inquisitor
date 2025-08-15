@@ -4,5 +4,10 @@ quay.io/thanos/thanos:v0.36.0
 docker.io/google/cloud-sdk:latest
 docker.io/grafana/tempo:2.4.1
 docker.io/grafana/loki:2.9.8
-docker.io/hashicorp/vault:1.14.8
-nginx:latest
+hashicorp/vault:1.14.8
+nginx
+node:latest
+python:3
+python:3.13
+python:3.13.5
+mysql@sha256:082063dca94535c76b91c6ef9b9f6748810e546887af5e8574a8cfa11eace184
