@@ -51,10 +51,10 @@ spec:
             - --log-format={{ .Values.logFormat }}
             - --source-id={{ .Values.source.sourceID }}
             - --source={{ .Values.source.source }}
-            {{- with .Values.run.mirror["index.docker.io"].enabled }}
+            {{- with (index .Values.run.mirror "index.docker.io").enabled }}
             - --enable-dockerhub-mirror
             {{- end }}
-            {{- with .Values.run.mirror["index.docker.io"].mirror }}
+            {{- with (index .Values.run.mirror "index.docker.io").mirror }}
             - --dockerhub-mirror={{ . }}
             {{- end }}
             {{- range .Values.source.kubernetes.includeNamespaces }}
