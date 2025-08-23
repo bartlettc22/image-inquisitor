@@ -19,9 +19,8 @@ type ReportFormat string
 var svcLog = log.WithField("service", "reports")
 
 const (
-	ReportFormatJSON           ReportFormat = "json"
-	ReportFormatYAML           ReportFormat = "yaml"
-	ReportFormatSimplifiedJSON ReportFormat = "simplified-json"
+	ReportFormatJSON ReportFormat = "json"
+	ReportFormatYAML ReportFormat = "yaml"
 
 	defaultReportFormat = ReportFormatJSON
 )
@@ -57,8 +56,6 @@ func ParseReportFormat(reportFormat string) (ReportFormat, error) {
 		return ReportFormatJSON, nil
 	case ReportFormatYAML.String():
 		return ReportFormatYAML, nil
-	case ReportFormatSimplifiedJSON.String():
-		return ReportFormatSimplifiedJSON, nil
 	default:
 		return "", fmt.Errorf("invalid report format: %s", reportFormat)
 	}
@@ -158,12 +155,6 @@ func (rg *ReportGenerator) Generate(inventory inventory.Inventory) error {
 					return err
 				}
 				reportFileName = fmt.Sprintf("%s.yaml", reportType)
-			case ReportFormatSimplifiedJSON:
-				reportSimplified := SimplifiedManifest(report)
-				reportBytes, err = json.Marshal(reportSimplified)
-				if err != nil {
-					return err
-				}
 			default:
 				return fmt.Errorf("invalid report format: %s", rg.reportFormat)
 			}
@@ -177,28 +168,4 @@ func (rg *ReportGenerator) Generate(inventory inventory.Inventory) error {
 	}
 
 	return nil
-}
-
-func SimplifiedManifest(manifest *metadata.Manifest) any {
-	return &SimplifiedReport{
-		Metadata: &SimplifiedReportMetadata{
-			Version: manifest.Version,
-			Kind:    manifest.Kind,
-			Created: manifest.Metadata.Created,
-			UUID:    manifest.Metadata.UUID,
-		},
-		Report: manifest.Spec,
-	}
-}
-
-type SimplifiedReport struct {
-	Metadata *SimplifiedReportMetadata `json:"metadata" yaml:"metadata"`
-	Report   any                       `json:"report" yaml:"report"`
-}
-
-type SimplifiedReportMetadata struct {
-	Version string    `json:"version" yaml:"version"`
-	Kind    string    `json:"kind" yaml:"kind"`
-	Created time.Time `json:"created" yaml:"created"`
-	UUID    string    `json:"uuid,omitempty" yaml:"uuid,omitempty"`
 }

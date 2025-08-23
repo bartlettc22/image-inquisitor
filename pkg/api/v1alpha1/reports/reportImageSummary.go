@@ -15,6 +15,7 @@ type ImageSummary struct {
 	Ref                                string    `json:"ref" yaml:"ref"`
 	Tag                                string    `json:"tag" yaml:"tag"`
 	Digest                             string    `json:"digest" yaml:"digest"`
+	Identifier                         string    `json:"identifier" yaml:"identifier"`
 	Created                            time.Time `json:"created" yaml:"created"`
 	AgeSeconds                         int       `json:"age_seconds" yaml:"ageSeconds"`
 	SourceCount                        int       `json:"source_count" yaml:"sourceCount"`

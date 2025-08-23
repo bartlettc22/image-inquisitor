@@ -11,6 +11,8 @@ func InventoryGeneratorFromConfig() (*inventory.InventoryGenerator, error) {
 		SkipRegistries:              viper.GetStringSlice("skip-registry"),
 		LatestSemverScanningEnabled: viper.GetBool("latest-semver-scan"),
 		SecurityScanningEnabled:     viper.GetBool("security-scan"),
+		EnableDockerhubMirror:       viper.GetBool("enable-dockerhub-mirror"),
+		DockerhubMirror:             viper.GetString("dockerhub-mirror"),
 	}
 
 	if inventoryConfig.SecurityScanningEnabled {

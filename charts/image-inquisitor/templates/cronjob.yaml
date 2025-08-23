@@ -1,0 +1,111 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "image-inquisitor.fullname" . }}
+  labels:
+    {{- include "image-inquisitor.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.cronjob.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: {{ .Values.cronjob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronjob.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ include "image-inquisitor.fullname" . }}
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+              {{- toYaml . | nindent 8 }}
+          {{- end }}
+          securityContext:
+            fsGroup: 1001
+          {{- with .Values.securityContext }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+          - name: {{ .Chart.Name }}
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            args:
+            {{- if eq .Values.mode "run" }}
+            - run
+            {{- with .Values.run.importFrom }}
+            - --import-from={{ . }}
+            {{- end }}
+            {{- range .Values.run.skipRegistry }}
+            - --skip-registry={{ . }}
+            {{- end }}
+            {{- range .Values.run.reports }}
+            - --reports={{ . }}
+            {{- end }}
+            - --latest-semver-scan={{ .Values.run.latestSemverScan }}
+            - --security-scan={{ .Values.run.securityScan }}
+            - --report-location={{ .Values.run.reportLocation }}
+            - --report-format={{ .Values.run.reportFormat }}
+            {{- else }}
+            - export
+            - --export-destination={{ .Values.export.destination }}
+            {{- end }}
+            - --log-level={{ .Values.logLevel }}
+            - --log-format={{ .Values.logFormat }}
+            - --source-id={{ .Values.source.sourceID }}
+            - --source={{ .Values.source.source }}
+            {{- with .Values.run.mirror["index.docker.io"].enabled }}
+            - --enable-dockerhub-mirror
+            {{- end }}
+            {{- with .Values.run.mirror["index.docker.io"].mirror }}
+            - --dockerhub-mirror={{ . }}
+            {{- end }}
+            {{- range .Values.source.kubernetes.includeNamespaces }}
+            - --source-kubernetes-include-namespaces={{ . }}
+            {{- end }}
+            {{- range .Values.source.kubernetes.excludeNamespaces }}
+            - --source-kubernetes-exclude-namespaces={{ . }}
+            {{- end }}
+            {{- with .Values.source.file.path }}
+            - --source-file-path={{ . }}
+            {{- end }}
+            env:
+            - name: TRIVY_CACHE_DIR
+              value: /cache/trivy
+            {{- with .Values.resources }}
+            resources:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- if ( or .Values.persistence.enabled .Values.volumeMounts ) }}
+            volumeMounts:
+            {{- if .Values.persistence.enabled }}
+              - name: cache
+                mountPath: /cache
+            {{- end }}
+            {{- with .Values.volumeMounts }}
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- end }}
+          restartPolicy: Never
+          {{- if ( or .Values.persistence.enabled .Values.volumes ) }}
+          volumes:
+          {{- if .Values.persistence.enabled }}
+            - name: cache
+              persistentVolumeClaim:
+                claimName: {{ include "image-inquisitor.fullname" . }}
+          {{- end }}
+          {{- with .Values.volumes }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+

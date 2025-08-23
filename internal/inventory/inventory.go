@@ -45,6 +45,8 @@ type InventoryConfig struct {
 	LatestSemverScanningEnabled bool
 	SecurityScanningEnabled     bool
 	SecurityScanner             *trivy.TrivyScanner
+	EnableDockerhubMirror       bool
+	DockerhubMirror             string
 }
 
 func NewInventoryGenerator(c *InventoryConfig) (*InventoryGenerator, error) {
@@ -54,6 +56,10 @@ func NewInventoryGenerator(c *InventoryConfig) (*InventoryGenerator, error) {
 		if err != nil {
 			return nil, fmt.Errorf("unable to refresh Trivy database: %w", err)
 		}
+	}
+
+	if c.EnableDockerhubMirror && c.DockerhubMirror == "" {
+		return nil, fmt.Errorf("dockerhub-mirror must be set if enable-dockerhub-mirror is true")
 	}
 
 	return &InventoryGenerator{
@@ -90,9 +96,15 @@ func (i *InventoryGenerator) AddSource(source *sourcesapi.Source) {
 		return
 	}
 
+	// Set mirror if enabled
+	options := []registries.ImageOptions{}
+	if i.config.EnableDockerhubMirror {
+		options = append(options, registries.WithMirror(i.config.DockerhubMirror))
+	}
+
 	i.workerPoolWG.Add(1)
 	i.workerPool.AddTask(callbackworker.NewCallbackTask(
-		newAddSourceFunc(source),
+		newAddSourceFunc(source, options...),
 		i.AddSourceCallback,
 	))
 }
@@ -182,23 +194,27 @@ func (i *InventoryGenerator) GetLatestSemverCallback(result interface{}, err err
 		return
 	}
 
-	if _, ok := i.inventory[latestSemverResult.ReferencePrefix]; ok {
-		i.inventory[latestSemverResult.ReferencePrefix].LatestSemverTag = latestSemverResult.LatestSemverTag
-		i.inventory[latestSemverResult.ReferencePrefix].LatestSemverDigest = latestSemverResult.LatestSemverDigest
-		i.inventory[latestSemverResult.ReferencePrefix].LatestSemverCreated = latestSemverResult.LatestSemverCreated
+	if latestSemverResult.LatestSemverDigest != "" {
+		if _, ok := i.inventory[latestSemverResult.ReferencePrefix]; ok {
+			i.inventory[latestSemverResult.ReferencePrefix].LatestSemverTag = latestSemverResult.LatestSemverTag
+			i.inventory[latestSemverResult.ReferencePrefix].LatestSemverDigest = latestSemverResult.LatestSemverDigest
+			i.inventory[latestSemverResult.ReferencePrefix].LatestSemverCreated = latestSemverResult.LatestSemverCreated
 
-		// Add the latest digest as a source
-		i.AddSource(&sourcesapi.Source{
-			Type:           sourcesapi.RegistryLatestSemverSourceType,
-			ImageReference: fmt.Sprintf("%s@%s", latestSemverResult.ReferencePrefix, latestSemverResult.LatestSemverDigest),
-			SourceDetails: struct {
-				Tag string `yaml:"tag" json:"tag"`
-			}{
-				Tag: latestSemverResult.LatestSemverTag,
-			},
-		})
+			// Add the latest digest as a source
+			i.AddSource(&sourcesapi.Source{
+				Type:           sourcesapi.RegistryLatestSemverSourceType,
+				ImageReference: fmt.Sprintf("%s@%s", latestSemverResult.ReferencePrefix, latestSemverResult.LatestSemverDigest),
+				SourceDetails: struct {
+					Tag string `yaml:"tag" json:"tag"`
+				}{
+					Tag: latestSemverResult.LatestSemverTag,
+				},
+			})
+		} else {
+			log.Errorf("tried adding latest semver to repository that doesn't exist")
+		}
 	} else {
-		log.Errorf("tried adding latest semver to repository that doesn't exist")
+		log.WithField("refPrefix", latestSemverResult.ReferencePrefix).Debug("no latest semver digest found")
 	}
 }
 

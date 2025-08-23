@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
 
 type Kubernetes struct {
@@ -24,6 +25,11 @@ type KubernetesConfig struct {
 }
 
 func NewKubernetes(c *KubernetesConfig) (*Kubernetes, error) {
+
+	klog.SetOutputBySeverity("INFO", &KLogWriter{level: "INFO"})
+	klog.SetOutputBySeverity("WARNING", &KLogWriter{level: "WARNING"})
+	klog.SetOutputBySeverity("ERROR", &KLogWriter{level: "ERROR"})
+	klog.SetOutputBySeverity("FATAL", &KLogWriter{level: "FATAL"})
 
 	kubeRestConfig, err := rest.InClusterConfig()
 	if err != nil {
