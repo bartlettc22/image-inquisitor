@@ -1,0 +1,1627 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": 54,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "000000003"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🔴 Critical"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟠 High"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟡 Medium"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟢 Low"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 11,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{namespace=\"$namespace\",container=\"image-inquisitor\",pod=\"$last_successful_pod\"} | json | __error__ != \"JSONParserErr\" | kind=\"SummaryReport\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Issues",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": ",",
+            "format": "json",
+            "jsonPaths": [
+              {
+                "alias": "",
+                "path": "spec_report_issues_critical_count"
+              },
+              {
+                "alias": "",
+                "path": "spec_report_issues_high_count"
+              },
+              {
+                "alias": "",
+                "path": "spec_report_issues_medium_count"
+              },
+              {
+                "alias": "",
+                "path": "spec_report_issues_low_count"
+              },
+              {
+                "alias": "",
+                "path": "spec_report_issues_unknown_count"
+              },
+              {
+                "alias": "report_report_total_issues_count",
+                "path": "spec_report_total_issues_count"
+              }
+            ],
+            "replace": true,
+            "source": "labels"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "report_report_issues_critical_count": 1,
+              "report_report_issues_high_count": 2,
+              "report_report_issues_low_count": 4,
+              "report_report_issues_medium_count": 3,
+              "report_report_issues_unknown_count": 5,
+              "report_report_total_issues_count": 0
+            },
+            "orderByMode": "manual",
+            "renameByName": {
+              "report_report_digest_count": "Unique Images",
+              "report_report_issues_critical_count": "🔴 Critical",
+              "report_report_issues_high_count": "🟠 High",
+              "report_report_issues_low_count": "🟢 Low",
+              "report_report_issues_medium_count": "🟡 Medium",
+              "report_report_issues_unknown_count": "⚪ Unknown",
+              "report_report_kubernetes_source_count": "",
+              "report_report_total_issues_count": "Total Issues",
+              "spec_report_issues_critical_count": "🔴 Critical",
+              "spec_report_issues_high_count": "🟠 High",
+              "spec_report_issues_low_count": "🟢 Low",
+              "spec_report_issues_medium_count": "🟡 Medium",
+              "spec_report_issues_unknown_count": "⚪ Unknown"
+            }
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "000000003"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "hidden",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🔴 Critical"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟠 High"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟡 Medium"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟢 Low"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 7,
+        "x": 11,
+        "y": 0
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "sum_over_time({namespace=\"$namespace\",container=\"image-inquisitor\"} | json | __error__ != \"JSONParserErr\" | kind=\"SummaryReport\" | unwrap spec_report_issues_critical_count [$__auto])",
+          "legendFormat": "🔴 Critical",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "sum_over_time({namespace=\"$namespace\",container=\"image-inquisitor\"} | json | __error__ != \"JSONParserErr\" | kind=\"SummaryReport\" | unwrap spec_report_issues_high_count [$__auto])",
+          "hide": false,
+          "legendFormat": "🟠 High",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "sum_over_time({namespace=\"$namespace\",container=\"image-inquisitor\"} | json | __error__ != \"JSONParserErr\" | kind=\"SummaryReport\" | unwrap spec_report_issues_medium_count [$__auto])",
+          "hide": false,
+          "legendFormat": "🟡 Medium",
+          "queryType": "range",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "sum_over_time({namespace=\"$namespace\",container=\"image-inquisitor\"} | json | __error__ != \"JSONParserErr\" | kind=\"SummaryReport\" | unwrap spec_report_issues_low_count [$__auto])",
+          "hide": false,
+          "legendFormat": "🟢 Low",
+          "queryType": "range",
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "sum_over_time({namespace=\"$namespace\",container=\"image-inquisitor\"} | json | __error__ != \"JSONParserErr\" | kind=\"SummaryReport\" | unwrap spec_report_issues_unknown_count [$__auto])",
+          "hide": false,
+          "legendFormat": "⚪ Unknown",
+          "queryType": "range",
+          "refId": "E"
+        }
+      ],
+      "timeFrom": "now-14d",
+      "title": "Issues",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "000000003"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 18,
+        "y": 0
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^spec_report_repo_count$/",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{namespace=\"$namespace\",container=\"image-inquisitor\",pod=\"$last_successful_pod\"} | json | __error__ != \"JSONParserErr\" | kind=\"SummaryReport\"",
+          "maxLines": 1,
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Unique Repos",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": ",",
+            "source": "labels"
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "000000003"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "dateTimeFromNow"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 21,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "metadata_created",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{namespace=\"$namespace\",container=\"image-inquisitor\",pod=\"$last_successful_pod\"} | json | __error__ != \"JSONParserErr\" | kind=\"SummaryReport\"",
+          "maxLines": 1,
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Last Scan",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": ",",
+            "source": "labels"
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "000000003"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 18,
+        "y": 3
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^spec_report_digest_count$/",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{namespace=\"$namespace\",container=\"image-inquisitor\",pod=\"$last_successful_pod\"} | json | __error__ != \"JSONParserErr\" | kind=\"SummaryReport\"",
+          "maxLines": 1,
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Unique Images",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": ",",
+            "source": "labels"
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "000000003"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 21,
+        "y": 3
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^spec_report_kubernetes_source_count$/",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{namespace=\"$namespace\",container=\"image-inquisitor\",pod=\"$last_successful_pod\"} | json | __error__ != \"JSONParserErr\" | kind=\"SummaryReport\"",
+          "maxLines": 1,
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Kubernetes Sources",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": ",",
+            "source": "labels"
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "000000003"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Image Reference"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 540
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "pattern": "^([^:@]+).*",
+                      "result": {
+                        "index": 0,
+                        "text": "$1"
+                      }
+                    },
+                    "type": "regex"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🔴"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 84
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟠"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 75
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟡"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 74
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "⚪"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 67
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "super-light-yellow",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟢"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 67
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "super-light-yellow",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟥"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 67
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "text",
+                        "index": 1
+                      }
+                    },
+                    "type": "value"
+                  },
+                  {
+                    "options": {
+                      "from": -999999999,
+                      "result": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "to": -1
+                    },
+                    "type": "range"
+                  },
+                  {
+                    "options": {
+                      "from": 1,
+                      "result": {
+                        "color": "red",
+                        "index": 2
+                      },
+                      "to": 9999999999
+                    },
+                    "type": "range"
+                  }
+                ]
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟧"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 67
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "text",
+                        "index": 1
+                      }
+                    },
+                    "type": "value"
+                  },
+                  {
+                    "options": {
+                      "from": -999999999,
+                      "result": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "to": -1
+                    },
+                    "type": "range"
+                  },
+                  {
+                    "options": {
+                      "from": 1,
+                      "result": {
+                        "color": "red",
+                        "index": 2
+                      },
+                      "to": 9999999999
+                    },
+                    "type": "range"
+                  }
+                ]
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟨"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 67
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "text",
+                        "index": 1
+                      }
+                    },
+                    "type": "value"
+                  },
+                  {
+                    "options": {
+                      "from": -999999999,
+                      "result": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "to": -1
+                    },
+                    "type": "range"
+                  },
+                  {
+                    "options": {
+                      "from": 1,
+                      "result": {
+                        "color": "red",
+                        "index": 2
+                      },
+                      "to": 9999999999
+                    },
+                    "type": "range"
+                  }
+                ]
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "⬜️"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 63
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "text",
+                        "index": 1
+                      }
+                    },
+                    "type": "value"
+                  },
+                  {
+                    "options": {
+                      "from": -999999999,
+                      "result": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "to": -1
+                    },
+                    "type": "range"
+                  },
+                  {
+                    "options": {
+                      "from": 1,
+                      "result": {
+                        "color": "red",
+                        "index": 2
+                      },
+                      "to": 9999999999
+                    },
+                    "type": "range"
+                  }
+                ]
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Out of Date By"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 171
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "index": 0,
+                        "text": "Up To Date"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "purple",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    },
+                    {
+                      "color": "orange",
+                      "value": 3629000
+                    },
+                    {
+                      "color": "red",
+                      "value": 7258000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latest Tag"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 245
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟢"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 63
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "🟩"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 70
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "text",
+                        "index": 1
+                      }
+                    },
+                    "type": "value"
+                  },
+                  {
+                    "options": {
+                      "from": -999999999,
+                      "result": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "to": -1
+                    },
+                    "type": "range"
+                  },
+                  {
+                    "options": {
+                      "from": 1,
+                      "result": {
+                        "color": "red",
+                        "index": 2
+                      },
+                      "to": 9999999999
+                    },
+                    "type": "range"
+                  }
+                ]
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Source Count"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 136
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Image Identifier"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "pattern": "(sha256:[a-z0-9]{8}).*",
+                      "result": {
+                        "color": "purple",
+                        "index": 0,
+                        "text": "$1"
+                      }
+                    },
+                    "type": "regex"
+                  },
+                  {
+                    "options": {
+                      "pattern": "(latest|main)",
+                      "result": {
+                        "color": "orange",
+                        "index": 1
+                      }
+                    },
+                    "type": "regex"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 369
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Digest"
+            },
+            "properties": [
+              {
+                "id": "custom.align",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 31,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "id": 1,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "Out of Date By"
+          }
+        ]
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "000000003"
+          },
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{namespace=\"$namespace\",container=\"image-inquisitor\",pod=\"$last_successful_pod\"} | \r\n    json | \r\n    __error__ != \"JSONParserErr\" | \r\n    kind=\"ImageSummaryReport\"",
+          "maxLines": 1,
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Image Inventory",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": ",",
+            "format": "json",
+            "jsonPaths": [],
+            "source": "Line"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": ",",
+            "format": "json",
+            "keepTime": false,
+            "replace": true,
+            "source": "spec"
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": ",",
+            "format": "json",
+            "replace": true,
+            "source": "report"
+          }
+        },
+        {
+          "id": "transpose",
+          "options": {}
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "delimiter": ",",
+            "source": "1"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "1": true,
+              "Field": true,
+              "age_seconds": true,
+              "created": true,
+              "is_latest_semver": true,
+              "latest_issues_critical_count": true,
+              "latest_issues_high_count": true,
+              "latest_issues_low_count": true,
+              "latest_issues_medium_count": true,
+              "latest_issues_unknown_count": true,
+              "latest_semver_age_seconds": true,
+              "latest_semver_created": true,
+              "latest_semver_digest": true,
+              "tag": true,
+              "total_issues_count": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "1": 6,
+              "Field": 5,
+              "age_seconds": 7,
+              "created": 8,
+              "digest": 30,
+              "identifier": 2,
+              "is_latest_semver": 9,
+              "issues_critical_change_by_latest_semver": 15,
+              "issues_critical_count": 10,
+              "issues_high_change_by_latest_semver": 16,
+              "issues_high_count": 11,
+              "issues_low_change_by_latest_semver": 18,
+              "issues_low_count": 13,
+              "issues_medium_change_by_latest_semver": 17,
+              "issues_medium_count": 12,
+              "issues_unknown_change_by_latest_semver": 19,
+              "issues_unknown_count": 14,
+              "latest_issues_critical_count": 20,
+              "latest_issues_high_count": 21,
+              "latest_issues_low_count": 22,
+              "latest_issues_medium_count": 23,
+              "latest_issues_unknown_count": 24,
+              "latest_semver_age_seconds": 25,
+              "latest_semver_created": 26,
+              "latest_semver_digest": 27,
+              "latest_semver_tag": 3,
+              "out_of_date_by_seconds": 4,
+              "ref": 0,
+              "source_count": 28,
+              "tag": 1,
+              "total_issues_count": 29
+            },
+            "renameByName": {
+              "digest": "Digest",
+              "identifier": "Image Identifier",
+              "issues_critical_change_by_latest_semver": "🟥",
+              "issues_critical_count": "🔴",
+              "issues_high_change_by_latest_semver": "🟧",
+              "issues_high_count": "🟠",
+              "issues_low_change_by_latest_semver": "🟩",
+              "issues_low_count": "🟢",
+              "issues_medium_change_by_latest_semver": "🟨",
+              "issues_medium_count": "🟡",
+              "issues_unknown_change_by_latest_semver": "⬜️",
+              "issues_unknown_count": "⚪",
+              "latest_semver_tag": "Latest Tag",
+              "out_of_date_by_seconds": "Out of Date By",
+              "ref": "Image Reference",
+              "source_count": "Source Count",
+              "tag": "Tag",
+              "total_issues_count": ""
+            }
+          }
+        },
+        {
+          "id": "formatString",
+          "options": {
+            "outputFormat": "Substring",
+            "stringField": "digest",
+            "substringEnd": 15
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 41,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "text": "image-inquisitor",
+          "value": "image-inquisitor"
+        },
+        "hide": 2,
+        "name": "namespace",
+        "query": "image-inquisitor",
+        "skipUrlSync": true,
+        "type": "constant"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "manual-run-7bgkc",
+          "value": "manual-run-7bgkc"
+        },
+        "definition": "query_result(max(kube_pod_completion_time{namespace=\"$namespace\"}) by (pod))",
+        "hide": 2,
+        "name": "last_successful_pod",
+        "options": [],
+        "query": {
+          "qryType": 3,
+          "query": "query_result(max(kube_pod_completion_time{namespace=\"$namespace\"}) by (pod))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "/.*pod=\"([^\"]*).*/",
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Image Inquisitor",
+  "uid": "devsli7o3gu80f",
+  "version": 56
+}
