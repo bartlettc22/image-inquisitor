@@ -49,6 +49,7 @@ func GenerateImageSummaryReport(inventory inventory.Inventory, runID uuid.UUID) 
 							SourceCount:               1,
 							Tag:                       img.TagRef(),
 							Digest:                    digest,
+							Identifier:                img.Identifier(),
 							Created:                   digestDetails.Created,
 							AgeSeconds:                int(time.Since(digestDetails.Created).Seconds()),
 							LatestSemverTag:           latestSemverTag,

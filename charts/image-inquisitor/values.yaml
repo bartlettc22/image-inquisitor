@@ -1,0 +1,79 @@
+image:
+  repository: ghcr.io/bartlettc22/image-inquisitor
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets: []
+
+# This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  automount: true
+  annotations: {}
+
+logLevel: info
+logFormat: json
+
+# This can be set to "run" or "export"
+mode: run
+
+# Configuration for "run" mode
+run:
+  importFrom: ""
+  skipRegistry: []
+  latestSemverScan: true
+  securityScan: true
+  reports:
+  - ImageReport
+  - ImageSummaryReport
+  - RunReport
+  - SummaryReport
+  reportLocation: stdout
+  reportFormat: json
+  mirrors:
+    index.docker.io:
+      enabled: false
+      mirror: mirror.gcr.io
+
+
+export:
+  # Location to export the sources to
+  # ex: gs://my-bucket/my-prefix
+  destination: ""
+
+source:
+  # required
+  sourceID: ""
+
+  # Can be set to "kubernetes" or "file"
+  source: kubernetes
+  kubernetes:
+    includeNamespaces: []
+    excludeNamespaces: []
+  file:
+    path: ""
+
+cronjob:
+  # runs every day at midnight UTC
+  schedule: "0 0 * * *"   
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+
+persistence:
+  enabled: false
+  size: 5Gi
+  storageClass: ""
+
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
+
+resources: {}
+volumes: []
+volumeMounts: []
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -27,6 +27,9 @@ build-image:
 publish-image: build-image
 	docker push $(DOCKER_IMAGE)
 
+publish-helm:
+	./scripts/publish_helm_charts.sh
+
 .PHONY: dev-run
 dev-run:
 	go run ./... run \

@@ -20,6 +20,8 @@ func SetRunFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringSliceP("skip-registry", "", []string{}, "List of registries to skip when scanning")
 	cmd.PersistentFlags().BoolP("latest-semver-scan", "", true, "Scan image registry for latest semver tag")
 	cmd.PersistentFlags().BoolP("security-scan", "", true, "Whether to run security scan against images")
+	cmd.PersistentFlags().BoolP("enable-dockerhub-mirror", "", true, "Whether to enable docker.io mirroring")
+	cmd.PersistentFlags().StringP("dockerhub-mirror", "", "mirror.gcr.io", "docker.io mirror to use")
 
 	// Reporting
 	cmd.PersistentFlags().StringSliceP("reports", "", []string{"InventoryReport"}, "List of reports to output.  Can be one or more of [inventory, summary, summaryImageCombined, summaryRegistry, imageSummary, imageRegistry, imageVulnerabilities, imageKubernetes]")

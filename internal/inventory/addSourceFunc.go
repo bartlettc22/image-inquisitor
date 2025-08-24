@@ -17,10 +17,10 @@ type AddSourceResult struct {
 	Source          *sources.Source
 }
 
-func newAddSourceFunc(source *sources.Source) func() (any, error) {
+func newAddSourceFunc(source *sources.Source, o ...registries.ImageOptions) func() (any, error) {
 	return func() (any, error) {
 		log.WithField("ref", source.ImageReference).Debug("adding source")
-		image, err := registries.NewImage(source.ImageReference)
+		image, err := registries.NewImage(source.ImageReference, o...)
 		if err != nil {
 			return nil, err
 		}
