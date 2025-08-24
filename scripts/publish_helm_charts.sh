@@ -11,7 +11,7 @@ if [ -d "${chart}" ]; then
     helm package "${chart}"
     
     # Push to OCI registry
-    helm push "${chart_name}"-*.tgz oci://ghcr.io/bartlettc22
+    helm push "${chart_name}"-*.tgz oci://ghcr.io/bartlettc22/charts
     
     # Clean up
 	rm "${chart_name}"-*.tgz
