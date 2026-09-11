@@ -152,17 +152,25 @@ func formatReport(runResults RunResults, includeDetail bool) TrivyReport {
 					issues.Total.AddSeverity(misconfiguration.Severity)
 				}
 				for _, vulnerability := range vulnResults.Vulnerabilities {
+					// BOTH counters must run for every vulnerability regardless of
+					// whether the detail array is being built. Total.AddSeverity used
+					// to sit after the append, so gating the append on includeDetail
+					// also silently stopped counting: the critical count
+					// collapsed to near zero, since only misconfigurations and secrets still
+					// reached the total.
 					issues.Vulnerabilities.AddSeverity(vulnerability.Severity)
-					nvdScore := float64(0)
-					if nvd, ok := vulnerability.CVSS["nvd"]; ok {
-						nvdScore = nvd.V3Score
-					}
+					issues.Total.AddSeverity(vulnerability.Severity)
+
 					// The per-CVE array is ~100% of the serialised payload and is
 					// never read back by this codebase. Building it unconditionally
 					// pushed lines past Loki's 256KB limit, dropping the images with
 					// the MOST vulnerabilities -- precisely the ones worth seeing.
 					if !includeDetail {
 						continue
+					}
+					nvdScore := float64(0)
+					if nvd, ok := vulnerability.CVSS["nvd"]; ok {
+						nvdScore = nvd.V3Score
 					}
 					issues.Vulnerabilities.Vulnerabilities = append(issues.Vulnerabilities.Vulnerabilities, &ImageIssueVulnerability{
 						VulnerabilityID: vulnerability.VulnerabilityID,
@@ -174,7 +182,6 @@ func formatReport(runResults RunResults, includeDetail bool) TrivyReport {
 						NvdV3Score:      nvdScore,
 						PublishedDate:   vulnerability.PublishedDate,
 					})
-					issues.Total.AddSeverity(vulnerability.Severity)
 				}
 				for _, secret := range vulnResults.Secrets {
 					issues.Secrets.AddSeverity(secret.Severity)
