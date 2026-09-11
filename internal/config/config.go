@@ -58,6 +58,17 @@ type Config struct {
 	HarborRegistriesStr string
 	HarborRegistries    []string
 
+	// Include every individual CVE in the imageVulnerabilities report.
+	//
+	// Off by default because that array is effectively the ENTIRE payload: on a
+	// real scan it is nearly all of the bytes, and it pushes the largest lines
+	// past Loki's 256 KB default max_line_size, which silently drops them at
+	// ingest. Because line size scales with
+	// CVE count, the images that got dropped were exactly the ones with the most
+	// vulnerabilities. Nothing in this codebase reads the array back; it is
+	// written only to be serialised.
+	VulnerabilityDetail bool
+
 	// Reports Configuration
 	ReportOutputsStr string
 	ReportOutputs    ReportOutputs
@@ -164,6 +175,11 @@ func LoadConfig() Config {
 		"harbor-registries",
 		"",
 		"Comma-separated list of Harbor registry hostnames (self-hosted, so they cannot be auto-detected). Set HARBOR_USERNAME/HARBOR_PASSWORD for private projects.")
+
+	flag.BoolVar(&config.VulnerabilityDetail,
+		"vulnerability-detail",
+		false,
+		"Include every individual CVE in the imageVulnerabilities report. Off by default: the array is ~100% of the payload and pushes lines past Loki's 256KB line limit, which drops the worst-affected images entirely.")
 
 	flag.Parse()
 

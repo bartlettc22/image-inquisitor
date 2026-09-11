@@ -131,7 +131,7 @@ func (iis *ImageIssueSeverity) AddSeverity(severity string) {
 	}
 }
 
-func formatReport(runResults RunResults) TrivyReport {
+func formatReport(runResults RunResults, includeDetail bool) TrivyReport {
 	trivyReport := make(TrivyReport)
 	for _, r := range runResults {
 		if r.Err != nil {
@@ -156,6 +156,13 @@ func formatReport(runResults RunResults) TrivyReport {
 					nvdScore := float64(0)
 					if nvd, ok := vulnerability.CVSS["nvd"]; ok {
 						nvdScore = nvd.V3Score
+					}
+					// The per-CVE array is ~100% of the serialised payload and is
+					// never read back by this codebase. Building it unconditionally
+					// pushed lines past Loki's 256KB limit, dropping the images with
+					// the MOST vulnerabilities -- precisely the ones worth seeing.
+					if !includeDetail {
+						continue
 					}
 					issues.Vulnerabilities.Vulnerabilities = append(issues.Vulnerabilities.Vulnerabilities, &ImageIssueVulnerability{
 						VulnerabilityID: vulnerability.VulnerabilityID,

@@ -17,9 +17,11 @@ const (
 )
 
 type TrivyRunnerConfig struct {
-	Images     []string
-	NumWorkers int
-	OutputDir  string
+	// See config.VulnerabilityDetail.
+	VulnerabilityDetail bool
+	Images              []string
+	NumWorkers          int
+	OutputDir           string
 }
 
 type TrivyRunner struct {
@@ -74,7 +76,7 @@ func (tr *TrivyRunner) Run() TrivyReport {
 
 	wg.Wait()
 
-	return formatReport(runResults)
+	return formatReport(runResults, tr.VulnerabilityDetail)
 }
 
 func worker(id int, outputDir string, images <-chan string, results chan *ScanResult) {

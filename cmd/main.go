@@ -127,7 +127,7 @@ func main() {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
-			trivyReport, err := GetTrivyReport(inventory.ImagesAsSlice())
+			trivyReport, err := GetTrivyReport(inventory.ImagesAsSlice(), cfg.VulnerabilityDetail)
 			if err != nil {
 				log.Error(err)
 				return
@@ -187,7 +187,7 @@ func main() {
 	log.Infof("done")
 }
 
-func GetTrivyReport(images []string) (trivy.TrivyReport, error) {
+func GetTrivyReport(images []string, vulnerabilityDetail bool) (trivy.TrivyReport, error) {
 
 	trivyOutputDir, err := os.MkdirTemp("/tmp", "trivy_*")
 	if err != nil {
@@ -201,9 +201,10 @@ func GetTrivyReport(images []string) (trivy.TrivyReport, error) {
 	}()
 
 	trivyRunner := trivy.NewTrivyRunner(trivy.TrivyRunnerConfig{
-		NumWorkers: 5,
-		Images:     images,
-		OutputDir:  trivyOutputDir,
+		VulnerabilityDetail: vulnerabilityDetail,
+		NumWorkers:          5,
+		Images:              images,
+		OutputDir:           trivyOutputDir,
 	})
 
 	return trivyRunner.Run(), nil
