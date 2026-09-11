@@ -147,8 +147,19 @@ func main() {
 	// Images with no registry report keep empty upgrade fields (omitempty), which
 	// is honest -- absence of an answer, not a claim that nothing is available.
 	for imageFullName, vulnReport := range vulnerabilityReports {
+		// Always set the state, even with no registry report. An ABSENT label and
+		// a label reading "unknown" are very different to a consumer: Loki drops
+		// records whose label does not exist from a label filter, so leaving it
+		// unset would silently hide those images from any filtered view rather
+		// than showing them as unassessed. Those are
+		// exactly the images you least want
+		// disappearing from a "what still needs attention" list.
+		//
+		// The tags stay omitempty: those genuinely have no value to report.
 		if registryReport, ok := registryReports[imageFullName]; ok {
 			vulnReport.SetUpgradeContext(registryReport.Tag, registryReport.LatestTag)
+		} else {
+			vulnReport.SetUpgradeContext("", "")
 		}
 		masterImageReportList.AddImageReport(reports.ReportTypeImageVulnerabilities, imageFullName, vulnReport)
 	}

@@ -34,9 +34,10 @@ type TrivyImageReport struct {
 	// else only says "worth a look".
 	RunningTag string `json:"runningTag,omitempty"`
 	LatestTag  string `json:"latestSemverTag,omitempty"`
-	// One of: current, check, unknown. Empty when no registry report was
-	// produced for the image at all (the registry report type was not requested).
-	UpgradeState string `json:"upgradeState,omitempty"`
+	// Always one of: current, check, unknown. Never empty -- an absent label and
+	// a label reading "unknown" behave very differently in a label filter, and a
+	// missing one silently removes the image from filtered views.
+	UpgradeState string `json:"upgradeState"`
 }
 
 // UpgradeState values. Kept as constants so the dashboards and the scanner
