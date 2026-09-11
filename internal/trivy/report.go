@@ -15,7 +15,15 @@ type TrivyImageReport struct {
 	// timestamp: Grafana compares thresholds against absolute values, so
 	// colouring "older than N days" from a date would need a hardcoded cutoff
 	// that goes stale. A plain integer is directly sortable and colourable.
-	AgeDays     int          `json:"ageDays"`
+	//
+	// A POINTER so an unknown age can be omitted entirely. It used to be a plain
+	// int set to 0 when the created date was unusable, which rendered as "0 day"
+	// -- indistinguishable from an image built minutes ago, and it sorted to the
+	// top of any age-ascending view. registry.k8s.io/external-dns pins created to
+	// the Unix epoch for reproducible builds and so reported "0 day" while
+	// displaying a 1970 build date next to it. Omitting the field leaves the cell
+	// blank, which is the honest answer.
+	AgeDays     *int         `json:"ageDays,omitempty"`
 	ImageIssues *ImageIssues `json:"imageIssues"`
 
 	// Upgrade context, copied from the registry report for the same image after
@@ -171,9 +179,8 @@ func formatReport(runResults RunResults) TrivyReport {
 			}
 
 			created := r.Report.Metadata.ImageConfig.Created.Time
-			ageDays := 0
-			// Treat an absent or placeholder created date as unknown (0) rather
-			// than as a very old image.
+			// Leave AgeDays nil when the created date is unusable, so consumers
+			// show an empty cell rather than a number.
 			//
 			// Two cases produce a bogus age. Go's zero time (year 1) means the
 			// field was missing. The Unix epoch means the build deliberately
@@ -181,10 +188,15 @@ func formatReport(runResults RunResults) TrivyReport {
 			// 1970-01-01 so the image digest is stable, and
 			// registry.k8s.io/external-dns does exactly this -- it reported an
 			// age of 20705 days. Left unguarded such an image sorts to the top
-			// of any age ranking and colours red permanently, which is worse
-			// than admitting the age is unknown.
+			// of any age ranking and colours red permanently.
+			//
+			// Reporting 0 instead was the previous fix and was also wrong: it
+			// claimed the image was built today, which put external-dns at the
+			// top of an age-ascending list right next to its own 1970 build date.
+			var ageDays *int
 			if !created.IsZero() && created.Year() > 2000 {
-				ageDays = int(time.Since(created).Hours() / 24)
+				d := int(time.Since(created).Hours() / 24)
+				ageDays = &d
 			}
 
 			trivyReport[r.Image] = &TrivyImageReport{
