@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bartlettc22/image-inquisitor/internal/config"
+	"github.com/bartlettc22/image-inquisitor/internal/registries"
 	"github.com/bartlettc22/image-inquisitor/internal/registries/querier"
 	"github.com/bartlettc22/image-inquisitor/internal/reports"
 	"github.com/bartlettc22/image-inquisitor/internal/sources"
@@ -75,6 +76,12 @@ func main() {
 	masterSummaryReportList := reports.NewSummaryReportList(start)
 	masterImageReportList := reports.NewImageReportList(start)
 
+	// Shared between the registry and vulnerability passes so the vulnerability
+	// report can carry upgrade context. Both are written under mu inside their
+	// goroutines and read only after wg.Wait().
+	registryReports := make(map[string]*registries.RegistryImageReport)
+	var vulnerabilityReports trivy.TrivyReport
+
 	// Maps each image to the Kubernetes workloads running it. This is what turns
 	// a CVE list into a work queue -- "this image has 5 criticals" is far less
 	// actionable than "this image has 5 criticals and 6 Deployments run it".
@@ -109,6 +116,7 @@ func main() {
 					continue
 				}
 				mu.Lock()
+				registryReports[imageFullName] = registryReport
 				masterImageReportList.AddImageReport(reports.ReportTypeImageRegistry, imageFullName, registryReport)
 				mu.Unlock()
 			}
@@ -126,13 +134,24 @@ func main() {
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			for imageFullName, vulnReport := range trivyReport {
-				masterImageReportList.AddImageReport(reports.ReportTypeImageVulnerabilities, imageFullName, vulnReport)
-			}
-
+			vulnerabilityReports = trivyReport
 		}(wg)
 	}
 	wg.Wait()
+
+	// Enrich AFTER the wait, not inside either goroutine: the registry and
+	// vulnerability reports are produced concurrently, so neither can read the
+	// other's results without racing. Once both have finished this is a plain
+	// single-threaded pass.
+	//
+	// Images with no registry report keep empty upgrade fields (omitempty), which
+	// is honest -- absence of an answer, not a claim that nothing is available.
+	for imageFullName, vulnReport := range vulnerabilityReports {
+		if registryReport, ok := registryReports[imageFullName]; ok {
+			vulnReport.SetUpgradeContext(registryReport.Tag, registryReport.LatestTag)
+		}
+		masterImageReportList.AddImageReport(reports.ReportTypeImageVulnerabilities, imageFullName, vulnReport)
+	}
 
 	// Summary reports are derived from the per-image reports, so only generate
 	// them when a summary-type report was actually asked for.

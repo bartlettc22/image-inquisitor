@@ -17,6 +17,50 @@ type TrivyImageReport struct {
 	// that goes stale. A plain integer is directly sortable and colourable.
 	AgeDays     int          `json:"ageDays"`
 	ImageIssues *ImageIssues `json:"imageIssues"`
+
+	// Upgrade context, copied from the registry report for the same image after
+	// both reports are collected. It is duplicated here on purpose: consumers
+	// need "how bad is this image" and "can an upgrade do anything about it" in
+	// the SAME record. Keeping them in separate report types forces a join on
+	// image name, and in Grafana that means joinByField across two queries whose
+	// keys repeat once per scan -- fragile enough to be worth the duplication.
+	//
+	// UpgradeState is deliberately three-valued, and "check" rather than
+	// "behind", because the underlying LatestTag is the highest semver tag in the
+	// repository and is wrong more often than right: it flags pinned tracks
+	// (node:24-alpine -> 26.8.2), equivalent tags (busybox:1.38 -> 1.38.0) and
+	// unrelated tag series (app:v0.17.3 -> v1.6.5). Equality is
+	// trustworthy; inequality is not. So "current" is a real signal and anything
+	// else only says "worth a look".
+	RunningTag string `json:"runningTag,omitempty"`
+	LatestTag  string `json:"latestSemverTag,omitempty"`
+	// One of: current, check, unknown. Empty when no registry report was
+	// produced for the image at all (the registry report type was not requested).
+	UpgradeState string `json:"upgradeState,omitempty"`
+}
+
+// UpgradeState values. Kept as constants so the dashboards and the scanner
+// cannot drift apart on spelling.
+const (
+	UpgradeStateCurrent = "current"
+	UpgradeStateCheck   = "check"
+	UpgradeStateUnknown = "unknown"
+)
+
+// SetUpgradeContext records how the running tag compares to the newest tag the
+// registry knows about. latestTag empty means the registry could not determine
+// one, which is a different thing from being out of date.
+func (r *TrivyImageReport) SetUpgradeContext(runningTag, latestTag string) {
+	r.RunningTag = runningTag
+	r.LatestTag = latestTag
+	switch {
+	case latestTag == "":
+		r.UpgradeState = UpgradeStateUnknown
+	case runningTag == latestTag:
+		r.UpgradeState = UpgradeStateCurrent
+	default:
+		r.UpgradeState = UpgradeStateCheck
+	}
 }
 
 type ImageIssues struct {
