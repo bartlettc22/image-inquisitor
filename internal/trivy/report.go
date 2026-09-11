@@ -3,6 +3,7 @@ package trivy
 import (
 	"time"
 
+	"github.com/bartlettc22/image-inquisitor/internal/registries"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -48,28 +49,24 @@ type TrivyImageReport struct {
 	UpgradeState string `json:"upgradeState"`
 }
 
-// UpgradeState values. Kept as constants so the dashboards and the scanner
-// cannot drift apart on spelling.
+// UpgradeState values, re-exported from the registries package so callers of
+// this package do not need to import it just to compare a string.
 const (
-	UpgradeStateCurrent = "current"
-	UpgradeStateCheck   = "check"
-	UpgradeStateUnknown = "unknown"
+	UpgradeStateCurrent = registries.UpgradeStateCurrent
+	UpgradeStateCheck   = registries.UpgradeStateCheck
+	UpgradeStateUnknown = registries.UpgradeStateUnknown
 )
 
 // SetUpgradeContext records how the running tag compares to the newest tag the
-// registry knows about. latestTag empty means the registry could not determine
-// one, which is a different thing from being out of date.
+// registry knows about.
+//
+// The comparison itself lives in the registries package, which owns tag
+// semantics. Reimplementing it here is how the registry report and the
+// vulnerability report would end up disagreeing about the same image.
 func (r *TrivyImageReport) SetUpgradeContext(runningTag, latestTag string) {
 	r.RunningTag = runningTag
 	r.LatestTag = latestTag
-	switch {
-	case latestTag == "":
-		r.UpgradeState = UpgradeStateUnknown
-	case runningTag == latestTag:
-		r.UpgradeState = UpgradeStateCurrent
-	default:
-		r.UpgradeState = UpgradeStateCheck
-	}
+	r.UpgradeState = registries.CompareTags(runningTag, latestTag)
 }
 
 type ImageIssues struct {
