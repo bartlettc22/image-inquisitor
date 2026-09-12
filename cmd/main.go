@@ -205,6 +205,36 @@ func main() {
 				}, 1)
 		}
 
+		// How long the newest known tag has been public.
+		//
+		// This is what separates "somebody needs to act" from "this fixes itself".
+		// Renovate holds every update for minimumReleaseAge before it
+		// will even open a PR, so criticals on an image whose newest tag shipped
+		// yesterday are already handled -- the upgrade is queued behind a
+		// deliberate supply-chain soak. Criticals on an image whose newest tag has
+		// been public for three months are a different situation entirely.
+		//
+		// Emitted from the registry report rather than the vulnerability one
+		// because that is where the timestamp is fetched. Both are keyed by image,
+		// so consumers join with "and on(image)".
+		//
+		// Skipped when the timestamp is unusable, on the same reasoning as
+		// build_age_days: a missing series is a blank cell, whereas a zero would
+		// claim the release shipped today and put it inside the soak window.
+		for imageFullName, registryReport := range registryReports {
+			if registryReport.LatestTag == "" {
+				continue
+			}
+			ts := registryReport.LatestTagTimestamp
+			if ts.IsZero() || ts.Year() <= 2000 {
+				continue
+			}
+			pub.Gauge("image_inquisitor_latest_tag_age_days",
+				"Days since the newest known tag for this image was published. Below the Renovate soak window means an upgrade is queued rather than neglected.",
+				map[string]string{"image": imageFullName},
+				time.Since(ts).Hours()/24)
+		}
+
 		// Liveness of the scan itself. Nothing currently notices a CronJob that
 		// stops running -- there is no pod to alert on, so the data simply stops
 		// changing and the dashboards keep rendering the last result.
