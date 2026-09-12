@@ -69,6 +69,12 @@ type Config struct {
 	// written only to be serialised.
 	VulnerabilityDetail bool
 
+	// Prometheus-compatible endpoint to push scan results to, e.g.
+	// http://victoriametrics-http.victoriametrics.svc:8428/api/v1/import/prometheus
+	// Empty disables publishing. Metrics are an ADDITIONAL consumer path; the log
+	// reports remain the system of record and are written either way.
+	MetricsEndpoint string
+
 	// Reports Configuration
 	ReportOutputsStr string
 	ReportOutputs    ReportOutputs
@@ -180,6 +186,11 @@ func LoadConfig() Config {
 		"vulnerability-detail",
 		false,
 		"Include every individual CVE in the imageVulnerabilities report. Off by default: the array is ~100% of the payload and pushes lines past Loki's 256KB line limit, which drops the worst-affected images entirely.")
+
+	flag.StringVar(&config.MetricsEndpoint,
+		"metrics-endpoint",
+		"",
+		"Prometheus-compatible import endpoint to publish scan results to (e.g. VictoriaMetrics /api/v1/import/prometheus). Empty disables publishing.")
 
 	flag.Parse()
 

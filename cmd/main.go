@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bartlettc22/image-inquisitor/internal/config"
+	"github.com/bartlettc22/image-inquisitor/internal/metrics"
 	"github.com/bartlettc22/image-inquisitor/internal/registries"
 	"github.com/bartlettc22/image-inquisitor/internal/registries/querier"
 	"github.com/bartlettc22/image-inquisitor/internal/reports"
@@ -162,6 +163,68 @@ func main() {
 			vulnReport.SetUpgradeContext("", "")
 		}
 		masterImageReportList.AddImageReport(reports.ReportTypeImageVulnerabilities, imageFullName, vulnReport)
+	}
+
+	// Publish the same findings as metrics.
+	//
+	// The log reports stay the system of record; this is an additional consumer
+	// path, not a replacement. Metrics carry last-value semantics, which removes
+	// the "which scan is inside this window" question that every log-based panel
+	// otherwise has to answer.
+	if cfg.MetricsEndpoint != "" {
+		pub := metrics.NewPublisher(cfg.MetricsEndpoint)
+
+		for imageFullName, vulnReport := range vulnerabilityReports {
+			if vulnReport.ImageIssues != nil && vulnReport.ImageIssues.Total != nil {
+				t := vulnReport.ImageIssues.Total
+				for severity, count := range map[string]int{
+					"critical": t.Critical, "high": t.High, "medium": t.Medium,
+					"low": t.Low, "unknown": t.Unknown,
+				} {
+					pub.Gauge("image_inquisitor_vulnerabilities",
+						"Vulnerabilities found in a running image, by severity.",
+						map[string]string{"image": imageFullName, "severity": severity},
+						float64(count))
+				}
+			}
+			// Age is only emitted when known. A missing series is a blank panel
+			// cell; a zero would read as "built today", which is what the old
+			// int-valued field wrongly claimed for epoch-pinned images.
+			if vulnReport.AgeDays != nil {
+				pub.Gauge("image_inquisitor_build_age_days",
+					"Days since the image was built, omitted when the created date is unusable.",
+					map[string]string{"image": imageFullName}, float64(*vulnReport.AgeDays))
+			}
+			pub.Gauge("image_inquisitor_image_info",
+				"Always 1. Carries the running tag, newest known tag and upgrade state as labels.",
+				map[string]string{
+					"image":         imageFullName,
+					"running_tag":   vulnReport.RunningTag,
+					"latest_tag":    vulnReport.LatestTag,
+					"upgrade_state": vulnReport.UpgradeState,
+				}, 1)
+		}
+
+		// Liveness of the scan itself. Nothing currently notices a CronJob that
+		// stops running -- there is no pod to alert on, so the data simply stops
+		// changing and the dashboards keep rendering the last result.
+		pub.Gauge("image_inquisitor_scan_timestamp_seconds",
+			"Unix time the scan completed. Alert on this going stale.",
+			nil, float64(time.Now().Unix()))
+		pub.Gauge("image_inquisitor_images_scanned",
+			"Number of images in the completed scan.",
+			nil, float64(len(vulnerabilityReports)))
+		pub.Gauge("image_inquisitor_scan_duration_seconds",
+			"Wall-clock duration of the scan.",
+			nil, time.Since(start).Seconds())
+
+		if err := pub.Push(30 * time.Second); err != nil {
+			// Never fatal: the log reports are already written and are the system
+			// of record. A metrics outage must not cost us the scan.
+			log.Errorf("publishing metrics: %v", err)
+		} else {
+			log.Infof("published metrics for %d images to %s", len(vulnerabilityReports), cfg.MetricsEndpoint)
+		}
 	}
 
 	// Summary reports are derived from the per-image reports, so only generate
