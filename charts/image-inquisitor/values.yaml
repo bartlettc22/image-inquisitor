@@ -1,79 +1,200 @@
-image:
-  repository: ghcr.io/bartlettc22/image-inquisitor
-  pullPolicy: IfNotPresent
-  tag: ""
-
-imagePullSecrets: []
-
 # This is to override the chart name.
 nameOverride: ""
 fullnameOverride: ""
+
+imagePullSecrets: []
+
+# The daemon config (see config.example.yaml in the repo). The chart sets listen and dataDir,
+# and kubernetes.kubeconfig when kubeconfig.existingSecret is set.
+config:
+  syncInterval: 10m
+
+  # Repos whose Renovate PRs are tracked; a pattern like example-org/* matches the owner's
+  # repos that aren't archived or forks
+  repos: []
+  # - name: example-org/*
+  #   exclude: [example-org/docs]
+  # - name: other-org/deploy
+  #   branchPrefix: renovate/
+
+  kubernetes:
+    clusters:
+    # The cluster the chart is installed in, read with the chart's service account
+    - inCluster: true
+      name: in-cluster
+    # Other clusters by kubeconfig context (needs kubeconfig.existingSecret)
+    # - context: lab
+    #   excludeNamespaces: [kube-system]
+
+  # scan:
+  #   disabled: false
+
+github:
+  # Token for reading PRs and repo contents; stored in a Secret the chart creates
+  token: ""
+  # Or an existing Secret holding the token
+  existingSecret: ""
+  existingSecretKey: token
+
+# An existing kubernetes.io/dockerconfigjson Secret with credentials for private registries,
+# used to list tags and scan images
+registryCredentials:
+  existingSecret: ""
+
+# An existing Secret with a kubeconfig for the clusters configured by context
+kubeconfig:
+  existingSecret: ""
+  existingSecretKey: config
+
+# Renovate, run by the daemon as a Job in the release namespace, on the repos in config.repos
+renovate:
+  enabled: false
+
+  image:
+    repository: ghcr.io/renovatebot/renovate
+    tag: 44.181.6
+
+  # How often Renovate runs (Go duration); empty to only run it from the UI
+  interval: 6h
+  # How long one run may take
+  timeout: 1h
+
+  # The configured cluster the Jobs are created in: the one the chart is installed in
+  cluster: in-cluster
+
+  # Renovate's soak (minimumReleaseAge), set by the daemon: it dates images from the registry
+  # (Renovate only can for Docker Hub), shortens the soak of minor and patch updates that fix more
+  # critical CVEs in what's running than they introduce, and soaks updates introducing more than
+  # they fix longer. Leave unset to keep Renovate's own.
+  soak: {}
+  #  default: 14 days
+  #  major: 21 days
+  #  fastLane: 3 days
+  #  fastLaneSeverity: CRITICAL   # NONE turns the fast lane off
+  #  riskySeverity: CRITICAL      # NONE turns the longer soak off
+  #  risky: 42 days               # default: twice the longer of default and major
+
+  # Renovate's global config. The daemon sets repositories from config.repos (and
+  # minimumReleaseAge when soak is set).
+  config: {}
+  #  minimumReleaseAge: 14 days
+  #  packageRules:
+  #  - matchUpdateTypes: [major]
+  #    minimumReleaseAge: 21 days
+
+  # Renovate's GitHub token, which needs write access to the repos' contents, pull requests
+  # and issues; stored in a Secret the chart creates
+  github:
+    token: ""
+    # Or an existing Secret holding the token
+    existingSecret: ""
+    existingSecretKey: token
+
+  # More env for the Renovate container, e.g. registry credentials for detectHostRulesFromEnv
+  env: []
+  resources: {}
+  dnsConfig: {}
+  nodeSelector: {}
+
+  # A volume for Renovate's cache, so runs don't start from scratch
+  cache:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+
+# Read access to pods, workloads and Argo CD Applications in the cluster the chart is installed in
+rbac:
+  create: true
 
 serviceAccount:
   automount: true
   annotations: {}
 
-logLevel: info
-logFormat: json
-
-# This can be set to "run" or "export"
-mode: run
-
-# Configuration for "run" mode
-run:
-  importFrom: ""
-  skipRegistry: []
-  latestSemverScan: true
-  securityScan: true
-  reports:
-  - ImageReport
-  - ImageSummaryReport
-  - RunReport
-  - SummaryReport
-  reportLocation: stdout
-  reportFormat: json
-  mirrors:
-    index.docker.io:
-      enabled: false
-      mirror: mirror.gcr.io
-
-
-export:
-  # Location to export the sources to
-  # ex: gs://my-bucket/my-prefix
-  destination: ""
-
-source:
-  # required
-  sourceID: ""
-
-  # Can be set to "kubernetes" or "file"
-  source: kubernetes
-  kubernetes:
-    includeNamespaces: []
-    excludeNamespaces: []
-  file:
-    path: ""
-
-cronjob:
-  # runs every day at midnight UTC
-  schedule: "0 0 * * *"   
-  successfulJobsHistoryLimit: 1
-  failedJobsHistoryLimit: 1
-
-persistence:
-  enabled: false
-  size: 5Gi
-  storageClass: ""
-
-podAnnotations: {}
-podLabels: {}
-podSecurityContext: {}
-securityContext: {}
-
-resources: {}
-volumes: []
-volumeMounts: []
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# The daemon runs as a single-replica StatefulSet because its state is a SQLite database
+daemon:
+  image:
+    repository: ghcr.io/bartlettc22/image-inquisitor
+    pullPolicy: IfNotPresent
+    # Defaults to the chart's appVersion
+    tag: ""
+
+  logLevel: info
+  logFormat: json
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  # Prometheus Operator ServiceMonitor for the daemon's /metrics
+  serviceMonitor:
+    enabled: false
+    interval: 60s
+    scrapeTimeout: 30s
+    # Extra labels, e.g. the release label your Prometheus selects ServiceMonitors by
+    labels: {}
+
+  persistence:
+    enabled: true
+    # Trivy's vulnerability database alone takes about 2 GB
+    size: 10Gi
+    storageClass: ""
+
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    runAsNonRoot: true
+    fsGroup: 1001
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+
+  env: []
+  resources: {}
+  volumes: []
+  volumeMounts: []
+
+ui:
+  enabled: true
+  replicas: 1
+
+  image:
+    repository: ghcr.io/bartlettc22/image-inquisitor-ui
+    pullPolicy: IfNotPresent
+    # Defaults to the chart's appVersion
+    tag: ""
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+    - host: image-inquisitor.local
+      paths:
+      - path: /
+        pathType: Prefix
+    tls: []
+
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+
+  resources: {}

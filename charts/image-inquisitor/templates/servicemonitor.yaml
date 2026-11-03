@@ -1,0 +1,22 @@
+{{- with .Values.daemon.serviceMonitor }}
+{{- if .enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "image-inquisitor.fullname" $ }}
+  labels:
+    {{- include "image-inquisitor.componentLabels" (dict "ctx" $ "component" "daemon") | nindent 4 }}
+    {{- with .labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "image-inquisitor.componentSelectorLabels" (dict "ctx" $ "component" "daemon") | nindent 6 }}
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: {{ .interval }}
+    scrapeTimeout: {{ .scrapeTimeout }}
+{{- end }}
+{{- end }}

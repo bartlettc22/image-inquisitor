@@ -1,0 +1,65 @@
+{{- if .Values.renovate.enabled }}
+{{- if and .Values.renovate.github.token (not .Values.renovate.github.existingSecret) }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "image-inquisitor.fullname" . }}-renovate
+  labels:
+    {{- include "image-inquisitor.componentLabels" (dict "ctx" . "component" "renovate") | nindent 4 }}
+type: Opaque
+stringData:
+  token: {{ .Values.renovate.github.token | quote }}
+---
+{{- end }}
+{{- if .Values.renovate.cache.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "image-inquisitor.fullname" . }}-renovate-cache
+  labels:
+    {{- include "image-inquisitor.componentLabels" (dict "ctx" . "component" "renovate") | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.renovate.cache.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.renovate.cache.size | quote }}
+---
+{{- end }}
+{{- if .Values.rbac.create }}
+# The daemon creates a Job per Renovate run and reads its pod's log, in this namespace only
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "image-inquisitor.fullname" . }}-renovate
+  labels:
+    {{- include "image-inquisitor.componentLabels" (dict "ctx" . "component" "renovate") | nindent 4 }}
+rules:
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create", "get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "image-inquisitor.fullname" . }}-renovate
+  labels:
+    {{- include "image-inquisitor.componentLabels" (dict "ctx" . "component" "renovate") | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "image-inquisitor.fullname" . }}-renovate
+subjects:
+- kind: ServiceAccount
+  name: {{ include "image-inquisitor.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,151 @@
+version: '3'
+
+vars:
+  NODE_VERSION: 24.21.0
+  GOLANGCI_VERSION: v2.5.0
+  VERSION: '{{.VERSION | default "dev"}}'
+  IMAGE: ghcr.io/bartlettc22/image-inquisitor:{{.VERSION}}
+  UI_IMAGE: ghcr.io/bartlettc22/image-inquisitor-ui:{{.VERSION}}
+
+# Read by compose.yaml, so every task that runs docker compose needs them
+env:
+  GO_VERSION:
+    sh: awk '/^go /{print $2}' go.mod
+  TRIVY_VERSION: 0.65.0
+  HELM_VERSION: 3.18.6
+  # Absolute, so compose treats it as a bind mount rather than a named volume
+  IMGINQ_CONFIG:
+    sh: realpath -m "${IMGINQ_CONFIG:-config.local.yaml}"
+  IMGINQ_DATA:
+    sh: realpath -m .data/dev
+  # First file of $KUBECONFIG, else ~/.kube/config; /dev/null when there is none
+  KUBECONFIG_FILE:
+    sh: f="${KUBECONFIG%%:*}"; f="${f:-$HOME/.kube/config}"; if [ -f "$f" ]; then realpath "$f"; else echo /dev/null; fi
+  # Registry credentials for listing tags of private images; an empty config when there is none
+  DOCKER_CONFIG_FILE:
+    sh: f="${DOCKER_CONFIG:-$HOME/.docker}/config.json"; if [ -f "$f" ]; then realpath "$f"; else realpath -m .data/dev/docker-config.json; fi
+  HOST_UID:
+    sh: id -u
+  HOST_GID:
+    sh: id -g
+
+tasks:
+  dev-serve:
+    desc: Build and run the daemon (:8080) and UI (http://localhost:8081) in Docker
+    preconditions:
+      - sh: test -f "$IMGINQ_CONFIG"
+        msg: "Config not found; run: cp config.example.yaml config.local.yaml and edit it"
+    env:
+      # Prefer an exported GITHUB_TOKEN, else the gh CLI's token
+      GITHUB_TOKEN:
+        sh: echo "${GITHUB_TOKEN:-$(gh auth token 2>/dev/null)}"
+    cmds:
+      - mkdir -p "$IMGINQ_DATA"
+      - test -f "$DOCKER_CONFIG_FILE" || echo '{}' > "$DOCKER_CONFIG_FILE"
+      - docker compose up --build {{.CLI_ARGS}}
+
+  dev-down:
+    desc: Stop the dev stack (keeps its SQLite data in .data/dev)
+    cmds:
+      - docker compose down
+
+  dev-reset:
+    desc: Stop the dev stack and delete its SQLite data
+    cmds:
+      - docker compose down --volumes
+      - rm -rf "$IMGINQ_DATA"
+
+  dev-logs:
+    desc: Follow the dev stack's logs
+    cmds:
+      - docker compose logs -f {{.CLI_ARGS}}
+
+  ui-dev:
+    desc: Run the UI with hot reload on http://localhost:5173 against a daemon on :8080
+    cmds:
+      - >-
+        docker run --rm -it -p 5173:5173
+        -u $(id -u):$(id -g) -e npm_config_cache=/tmp/.npm
+        --add-host=host.docker.internal:host-gateway
+        -e API_UPSTREAM=http://host.docker.internal:8080
+        -v $PWD/ui:/src -w /src
+        node:{{.NODE_VERSION}}-alpine sh -c "npm install && npm run dev"
+
+  ui-lock:
+    desc: Generate ui/package-lock.json
+    cmds:
+      - >-
+        docker run --rm -u $(id -u):$(id -g) -e npm_config_cache=/tmp/.npm
+        -v $PWD/ui:/src -w /src
+        node:{{.NODE_VERSION}}-alpine npm install --package-lock-only
+
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test ./...
+
+  fmt-check:
+    desc: Fail if any Go file isn't gofmt-formatted
+    cmds:
+      - |
+        unformatted=$(gofmt -l $(git ls-files '*.go' ':!vendor'))
+        if [ -n "$unformatted" ]; then echo "Not gofmt-formatted:"; echo "$unformatted"; exit 1; fi
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - mkdir -p $HOME/.cache/go-build $HOME/.cache/golangci-lint $HOME/go/pkg/mod
+      - >-
+        docker run --rm -u $(id -u):$(id -g)
+        -v $PWD:/src -w /src
+        -v $HOME/.cache/go-build:/.cache/go-build -e GOCACHE=/.cache/go-build
+        -v $HOME/go/pkg/mod:/go/pkg/mod -e GOMODCACHE=/go/pkg/mod
+        -v $HOME/.cache/golangci-lint:/.cache/golangci-lint -e GOLANGCI_LINT_CACHE=/.cache/golangci-lint
+        golangci/golangci-lint:{{.GOLANGCI_VERSION}} golangci-lint run --timeout=4m
+
+  tidy:
+    desc: Tidy Go modules
+    cmds:
+      - go mod tidy
+
+  build-image:
+    desc: Build the daemon image (VERSION=dev by default)
+    cmds:
+      - >-
+        DOCKER_BUILDKIT=1 docker build
+        --build-arg VERSION={{.VERSION}}
+        --build-arg GO_VERSION=$GO_VERSION
+        --build-arg TRIVY_VERSION=$TRIVY_VERSION
+        --build-arg HELM_VERSION=$HELM_VERSION
+        -t {{.IMAGE}} .
+
+  publish-image:
+    desc: Build and push the daemon image (VERSION=dev by default)
+    deps: [build-image]
+    cmds:
+      - docker push {{.IMAGE}}
+
+  build-ui-image:
+    desc: Build the UI image (VERSION=dev by default)
+    cmds:
+      - >-
+        DOCKER_BUILDKIT=1 docker build
+        --build-arg NODE_VERSION={{.NODE_VERSION}}
+        -t {{.UI_IMAGE}} ui
+
+  publish-ui-image:
+    desc: Build and push the UI image (VERSION=dev by default)
+    deps: [build-ui-image]
+    cmds:
+      - docker push {{.UI_IMAGE}}
+
+  publish-helm:
+    desc: Package and push the Helm chart at VERSION (a release tag, e.g. v1.2.3)
+    preconditions:
+      - sh: echo "{{.VERSION}}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+'
+        msg: "VERSION must be a release tag like v1.2.3"
+    cmds:
+      - mkdir -p .data/charts
+      - helm package charts/image-inquisitor --version {{trimPrefix "v" .VERSION}} --app-version {{.VERSION}} -d .data/charts
+      - helm push .data/charts/image-inquisitor-{{trimPrefix "v" .VERSION}}.tgz oci://ghcr.io/bartlettc22/charts

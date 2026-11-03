@@ -1,0 +1,10 @@
+diff --git a/deploy/dashboards/deploy.yaml b/deploy/dashboards/deploy.yaml
+index 1111111..2222222 100644
+--- a/deploy/dashboards/deploy.yaml
++++ b/deploy/dashboards/deploy.yaml
+@@ -1,4 +1,4 @@
+ namespace: dashboards
+ helm:
+ - repoURL: oci://ghcr.io/example-org/helm-charts/dashboards
+-  targetRevision: 12.4.2
++  targetRevision: "12.11.2"

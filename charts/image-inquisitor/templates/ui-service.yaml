@@ -1,0 +1,16 @@
+{{- if .Values.ui.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "image-inquisitor.fullname" . }}-ui
+  labels:
+    {{- include "image-inquisitor.componentLabels" (dict "ctx" . "component" "ui") | nindent 4 }}
+spec:
+  type: {{ .Values.ui.service.type }}
+  ports:
+  - name: http
+    port: {{ .Values.ui.service.port }}
+    targetPort: http
+  selector:
+    {{- include "image-inquisitor.componentSelectorLabels" (dict "ctx" . "component" "ui") | nindent 4 }}
+{{- end }}

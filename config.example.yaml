@@ -1,0 +1,95 @@
+# image-inquisitor daemon config
+#
+# For local development copy this to config.local.yaml (gitignored) and edit it,
+# then run `task dev-serve`.
+
+# Address the API server listens on
+listen: ":8080"
+
+# Directory holding the SQLite database
+dataDir: /var/lib/imginq
+
+# How often to sync repos (Go duration)
+syncInterval: 10m
+
+github:
+  # apiURL: https://api.github.com
+  # Leave unset to read the GITHUB_TOKEN environment variable
+  # (`task dev-serve` sets it from `gh auth token`)
+  # token: ""
+
+# Repos whose dependency update PRs are tracked (and Renovate runs on, if configured below)
+repos:
+- name: example-org/deploy
+  # Head branch prefix that identifies Renovate PRs (default "renovate/")
+  # branchPrefix: renovate/
+# A pattern matches the owner's (org or user) repos that aren't archived or forks; the owner
+# is listed with the github token every hour, so new repos are picked up without a restart
+# - name: example-org/*
+#   exclude: [example-org/docs, example-org/sandbox-*]
+
+# Kubernetes clusters whose running images are inventoried
+kubernetes:
+  # Defaults to $KUBECONFIG or ~/.kube/config (`task dev-serve` mounts it read-only)
+  # kubeconfig: /path/to/kubeconfig
+  clusters:
+  - context: my-cluster
+    # Name shown in the UI (defaults to the context, or "in-cluster")
+    # name: home
+    # Or, when running in a cluster, read it with the pod's service account
+    # (the Helm chart's default) instead of a kubeconfig context:
+    # inCluster: true
+    # includeNamespaces: []
+    # excludeNamespaces: [kube-system]
+
+# Running images' tags and deployed charts' versions are listed to find the newest version of
+# each (re-listed every 6 hours). Private registries use the Docker credentials in
+# $DOCKER_CONFIG/config.json (`task dev-serve` mounts yours read-only).
+
+# Both sides of every PR image change (including images a chart update changes) are scanned
+# with Trivy in the background: an SBOM per digest once, then checked against Trivy's
+# vulnerability database every 24 hours. Trivy's database takes about 2 GB in dataDir.
+# scan:
+#   disabled: false
+#   trivy: trivy
+
+# Argo CD Applications found in the clusters are rendered with `helm template` (as Argo CD
+# does) to attribute running images to charts and to find the images a chart update changes.
+# Value files and git charts are read from GitHub with the github token.
+# helm:
+#   binary: helm
+
+# Renovate, run by the daemon as Kubernetes Jobs (one at a time) on the repos above, on an
+# interval and from the UI. The daemon syncs as soon as a run finishes, so its PRs show up
+# straight away. Leave this out to run Renovate yourself.
+# renovate:
+#   # A configured cluster (defaults to the only one) and the namespace the Jobs run in
+#   cluster: my-cluster
+#   namespace: renovate
+#   image: ghcr.io/renovatebot/renovate:44.181.6
+#   # Go duration; leave unset to only run Renovate from the UI
+#   interval: 6h
+#   timeout: 1h
+#   # Renovate's global config; repositories is set from repos above
+#   config:
+#     minimumReleaseAge: 14 days
+#   # Container env, as in a pod spec; Renovate's token needs write access to the repos
+#   env:
+#   - name: RENOVATE_TOKEN
+#     valueFrom:
+#       secretKeyRef: {name: renovate-github, key: token}
+#   # A PersistentVolumeClaim in the namespace for Renovate's cache (optional)
+#   # cacheClaim: renovate-cache
+#   # Renovate's soak (minimumReleaseAge), set by the daemon instead of in config above. The
+#   # daemon dates the newest version of each running image itself (Renovate only can for Docker
+#   # Hub images, and holds others indefinitely) and tells Renovate which have soaked. Minor and
+#   # patch updates fixing more critical CVEs in what's running than they introduce get the short
+#   # fast-lane soak; updates introducing more than they fix soak longer
+#   soak:
+#     default: 14 days
+#     major: 21 days
+#     # fastLane: 3 days
+#     # fastLaneSeverity: CRITICAL   # NONE turns the fast lane off
+#     # riskySeverity: CRITICAL      # NONE turns the longer soak off
+#     # risky: 42 days               # default: twice the longer of default and major
+#   # resources, dnsConfig and nodeSelector are passed to the pod as is

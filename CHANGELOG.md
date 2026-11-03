@@ -1,3 +1,20 @@
+# v0.4.0
+A rewrite: image-inquisitor is now a long-running daemon with a web UI that follows your Renovate PRs and running images. See the [docs](docs/README.md).
+
+Breaking:
+* Removed the `run` and `export` commands, their reports (including Loki and `dashboard.json`) and the Docker Hub mirroring flags
+* Helm chart 0.4.0 (its version now matches the app's) replaces the CronJob chart: a daemon StatefulSet (SQLite on a persistent volume) and a UI Deployment. No values carry over
+
+Added:
+* Tracks open Renovate PRs (by `renovate/` branch prefix) in configured repos, or every repo of an owner with `owner/*` patterns, and reads the image and Helm chart bumps from their diffs
+* Inventories running containers per cluster (in-cluster or by kubeconfig context), attributed to their workload and Argo CD Application
+* Renders Argo CD apps' Helm sources with `helm template` to attribute images to charts and to find the images a chart bump changes
+* Finds the newest version of the same variant for every running image and chart, and flags images that are behind with no PR
+* Scans with Trivy by digest (an SBOM once, re-checked daily): CVEs each PR fixes and introduces, CVEs in running images, and what updating them would fix
+* Web UI: dashboard, PRs, running images, Argo CD apps, vulnerability trends, and sync/scan status
+* Prometheus `/metrics`: open CVEs, CVEs past SLA, time to fix, update status, sync, scan and Renovate health; optional ServiceMonitor
+* Optional Renovate runs as Kubernetes Jobs from the daemon, with a soak policy set from each update's CVEs
+
 # v0.3.0
 * Added Helm chart
 * Added argument `--enable-dockerhub-mirror` to enable docker.io mirroring (default is false)

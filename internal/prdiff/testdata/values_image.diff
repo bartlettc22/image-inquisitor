@@ -1,0 +1,13 @@
+diff --git a/deploy/app/values.app.yaml b/deploy/app/values.app.yaml
+index 1111111..2222222 100644
+--- a/deploy/app/values.app.yaml
++++ b/deploy/app/values.app.yaml
+@@ -4,7 +4,7 @@ workload:
+   enabled: true
+   containers:
+   - name: app
+-    image: example/app:3.9.0
++    image: example/app:5.4.0
+     imagePullPolicy: IfNotPresent
+     ports:
+     - name: http

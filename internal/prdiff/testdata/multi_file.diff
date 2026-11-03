@@ -1,0 +1,26 @@
+diff --git a/deploy/bot/values.yaml b/deploy/bot/values.yaml
+index 1111111..2222222 100644
+--- a/deploy/bot/values.yaml
++++ b/deploy/bot/values.yaml
+@@ -3,7 +3,7 @@ cronJob:
+   schedule: "0 0 * * *"
+   containers:
+     - name: bot
+-      image: ghcr.io/example-org/bot:41.112.0
++      image: ghcr.io/example-org/bot:41.113.3
+       imagePullPolicy: IfNotPresent
+       env:
+       - name: TOKEN
+diff --git a/deploy/hub/values.yaml b/deploy/hub/values.yaml
+index 3333333..4444444 100644
+--- a/deploy/hub/values.yaml
++++ b/deploy/hub/values.yaml
+@@ -5,7 +5,7 @@ workload:
+     className: standard
+   containers:
+     - name: hub
+-      image: example/hub:1.38.0
++      image: example/hub:1.42.0
+       imagePullPolicy: IfNotPresent
+       env:
+       - name: HUB_USER

@@ -1,0 +1,16 @@
+diff --git a/Dockerfile b/Dockerfile
+index 1111111..2222222 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,9 +1,9 @@
+-FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
++FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
+ 
+ WORKDIR /src
+ COPY . .
+ RUN go build -o /app ./cmd
+ 
+-FROM alpine:3.20
++FROM alpine:3.22
+ COPY --from=builder /app /app
+ ENTRYPOINT ["/app"]

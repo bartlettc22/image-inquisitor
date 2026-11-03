@@ -1,0 +1,20 @@
+# Rendered by the nginx image's envsubst entrypoint; only defined env vars
+# (API_UPSTREAM) are substituted, so nginx variables like $uri are left alone
+server {
+    listen 8080;
+    root /usr/share/nginx/html;
+
+    location /api/ {
+        proxy_pass ${API_UPSTREAM};
+        proxy_set_header Host $host;
+    }
+
+    location = /healthz {
+        access_log off;
+        return 200 "ok\n";
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+}

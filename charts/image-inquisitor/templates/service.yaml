@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "image-inquisitor.fullname" . }}
+  labels:
+    {{- include "image-inquisitor.componentLabels" (dict "ctx" . "component" "daemon") | nindent 4 }}
+spec:
+  type: {{ .Values.daemon.service.type }}
+  ports:
+  - name: http
+    port: {{ .Values.daemon.service.port }}
+    targetPort: http
+  selector:
+    {{- include "image-inquisitor.componentSelectorLabels" (dict "ctx" . "component" "daemon") | nindent 4 }}

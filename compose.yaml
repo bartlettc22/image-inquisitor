@@ -1,0 +1,47 @@
+# Local development stack; run with `task dev-serve`
+name: imginq-dev
+
+services:
+  imginq:
+    build:
+      context: .
+      args:
+        GO_VERSION: ${GO_VERSION:?run via task dev-serve}
+        TRIVY_VERSION: ${TRIVY_VERSION:?run via task dev-serve}
+        HELM_VERSION: ${HELM_VERSION:?run via task dev-serve}
+        VERSION: dev
+    # Run as the host user so the bind-mounted kubeconfig (usually mode 600) is readable
+    user: "${HOST_UID:?run via task dev-serve}:${HOST_GID:?run via task dev-serve}"
+    command: [serve, --config, /config/config.yaml, --data-dir, /var/lib/imginq]
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      KUBECONFIG: /kube/config
+      DOCKER_CONFIG: /docker
+      TMPDIR: /var/lib/imginq
+    volumes:
+      - type: bind
+        source: ${IMGINQ_CONFIG:?run via task dev-serve}
+        target: /config/config.yaml
+        read_only: true
+      - type: bind
+        source: ${KUBECONFIG_FILE:?run via task dev-serve}
+        target: /kube/config
+        read_only: true
+      - type: bind
+        source: ${DOCKER_CONFIG_FILE:?run via task dev-serve}
+        target: /docker/config.json
+        read_only: true
+      - type: bind
+        source: ${IMGINQ_DATA:?run via task dev-serve}
+        target: /var/lib/imginq
+    ports:
+      - "8080:8080"
+
+  ui:
+    build: ui
+    environment:
+      API_UPSTREAM: http://imginq:8080
+    ports:
+      - "8081:8080"
+    depends_on:
+      - imginq
