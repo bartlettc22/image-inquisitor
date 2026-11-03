@@ -1,6 +1,7 @@
 apiVersion: v2
 name: image-inquisitor
-description: A Helm chart for Kubernetes
+description: Shows which container image updates matter, with the CVEs each Renovate PR fixes or introduces
 type: application
-version: 0.1.0
-appVersion: v0.2.0
+# Both are set from the release tag when the chart is published (task publish-helm)
+version: 0.0.0-dev
+appVersion: dev

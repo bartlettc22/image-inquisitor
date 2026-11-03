@@ -1,53 +1,66 @@
 # Image Inquisitor
 
-<big>Creates a report combining CVE data (using Trivy) with lastest image information.  Meant to be used by Loki to produce a dashboard to make it easier to prioritize upgrades</big>
+Image Inquisitor shows which container image updates matter. It follows the Renovate PRs in your
+GitOps repos and the images running in your clusters, scans both sides of every update with Trivy,
+and shows the CVEs each PR fixes or introduces, where the old version runs, and which running
+images have a newer version that no PR covers.
 
-<img src="image-inquisitor.png " alt="drawing" width="500" />
+It runs as two pieces:
 
-## Image References
-Images references take the form:
+- **The daemon** syncs PRs and clusters on an interval, scans images in the
+  background, and serves a JSON API. Its state is a SQLite database.
+- **The UI** is a static web app, served by nginx, that proxies `/api` to the daemon.
+
+## How it works
+
+- **Pull requests:** Renovate PRs are found by their head branch prefix (`renovate/` by default).
+  Image tags and Helm chart versions are read from each PR's diff. Chart updates are rendered with
+  `helm template` at both versions to find the images they change.
+- **Running images:** pods are read from each cluster and attributed to their workloads and Argo CD
+  Applications. Each running tag is compared with the newest tag of the same variant in its registry.
+- **Renovate (optional):** the daemon runs Renovate itself as Kubernetes Jobs, so it controls when it runs
+  and syncs as soon as a run finishes.
+- **Scanning:** each image digest gets a Trivy SBOM once; the SBOM is re-checked against Trivy's
+  vulnerability database every 24 hours, so re-scans don't pull images.
+
+## Installing with Helm
+
+The chart runs the daemon as a single-replica StatefulSet (one SQLite database on a persistent
+volume) and the UI as a Deployment. By default the daemon reads the cluster it's installed in.
+
+```bash
+kubectl create secret generic image-inquisitor-github --from-literal=token=<github token>
+
+cat > values.yaml <<'EOF'
+config:
+  repos:
+  - name: example-org/deploy
+github:
+  existingSecret: image-inquisitor-github
+ui:
+  ingress:
+    enabled: true
+    hosts:
+    - host: image-inquisitor.example.com
+      paths:
+      - path: /
+        pathType: Prefix
+EOF
+
+helm install image-inquisitor oci://ghcr.io/bartlettc22/charts/image-inquisitor -f values.yaml
 ```
-[registry]/[repository][:tag|@digest]
-```
 
-### Naming Expansion
-Images hosted on Docker Hub can be referenced by shorthand names (i.e. `nginx:latest`).  These image references will be automatically expanded to their full indentifier. The following are equivilant valid image names:
+The GitHub token needs read access to the repos' pull requests and contents. See
+[Install](docs/install.md) for private registries, more clusters, Prometheus and running without
+Kubernetes.
 
-|Image Reference|Expanded Image Reference|
-|-|-|
-|`nginx`|`index.docker.io/library/nginx:latest`|
-|`nginx:latest`|`index.docker.io/library/nginx:latest`|
-|`library/nginx:latest`|`index.docker.io/library/nginx:latest`|
-|`index.docker.io/library/nginx:latest`|`index.docker.io/library/nginx:latest`|
+## Documentation
 
-In addition, image names without a tag or digest will be expanded to include the `latest` tag.
-
-### Term Glossary
-Given the example image references below, the following terms are used to describe each parts of the reference:
-```
-index.docker.io/library/nginx:1.29.0
-index.docker.io/library/nginx@sha256:84ec966e61a8c7846f509da7eb081c55c1d56817448728924a87ab32f12a72fb
-```
-
-|Name|Example(s)|
-|---|---|
-|`Reference`|`index.docker.io/library/nginx:1.29.0` or `index.docker.io/library/nginx@sha256:84ec966e61a8c7846f509da7eb081c55c1d56817448728924a87ab32f12a72fb`|
-|`ReferencePrefix`|`index.docker.io/library/nginx`|
-|`Registry`|`index.docker.io`|
-|`Repository`|`library/nginx`|
-|`RepositoryNamespace`|`library/`|
-|`Tag`|`v1.29.0`|
-|`Digest`|`sha:0a0704ac83aa7b896a68b710c24f9502bbae87d32e6c7ef6148ce6a60ce05260`|
-
-### Fully Qualified Image Reference
-A fully qualified image reference (FQIR) refers to a image reference that includes both a tag and a digest. This takes the form:
-```
-[registry]/[repository]:[tag]@[digest]
-```
-While not a valid image reference as it includes both a tag and a digest, it can be useful to describe images with tags that are mutable and may change over time. With the inclusion of the digest, it indicates a more specific, immutable image reference while maintaining the original tag reference.
-
-## Sources
-- file
-- kubernetes
-- registry
-- registryLatestSemver (internal)
+- [How it works](docs/how-it-works.md): what gets synced, scanned and reported, and current limits
+- [Install](docs/install.md): Helm, tokens, registries, clusters, Docker
+- [Configuration](docs/configuration.md): every config setting and Helm value
+- [Renovate and soak policy](docs/renovate.md): let the daemon run Renovate and set its soak from CVEs
+- [Using the UI](docs/ui.md): dashboard, PRs, images, apps and the status views
+- [Monitoring](docs/monitoring.md): metrics, CVE SLAs and alerts
+- [Roadmap](docs/roadmap.md): what's planned
+- [Development](docs/development.md): local stack, tests and builds

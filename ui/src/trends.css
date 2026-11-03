@@ -1,0 +1,354 @@
+/* Chart colors, validated for colorblind separation and contrast against --surface in both themes:
+   rust marks exposure (open, opened), slate marks remediation (fixed, time to fix) */
+.trends {
+  --opened: light-dark(#c0532b, #d9693a);
+  --fixed: light-dark(#3b6fa8, #5f93cf);
+  --grid: light-dark(#ece4d5, #2c241e);
+  --baseline: var(--border);
+
+  margin-top: 36px;
+}
+
+.trends-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.trends h2 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.trends h3 {
+  font-family: var(--serif);
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Refetch keeps the frame */
+.trends-body {
+  transition: opacity 0.2s;
+}
+
+.trends-body.refreshing {
+  opacity: 0.65;
+}
+
+.trend-tiles {
+  margin-bottom: 12px;
+}
+
+.big.bad {
+  color: var(--bad);
+}
+
+.delta.good {
+  color: var(--good);
+}
+
+.delta.bad {
+  color: var(--bad);
+}
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.plot {
+  position: relative;
+}
+
+.plot svg {
+  display: block;
+  overflow: visible;
+}
+
+.plot svg:focus-visible,
+.plot .hit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.trend-multiples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.multiple-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-weight: 600;
+}
+
+.multiple-value {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.multiple-sub {
+  margin: 0 0 8px;
+  min-height: 18px;
+}
+
+.trend-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.trend-panels .sub {
+  margin-bottom: 10px;
+}
+
+.footnote {
+  margin: 8px 0 0;
+}
+
+/* Marks */
+.line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.line.opened {
+  stroke: var(--opened);
+}
+
+.area.opened {
+  fill: var(--opened);
+  opacity: 0.1;
+}
+
+.dot {
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.dot.opened {
+  fill: var(--opened);
+}
+
+.bar.opened {
+  fill: var(--opened);
+}
+
+.bar.fixed {
+  fill: var(--fixed);
+}
+
+.dimmed .bar,
+.partial .bar {
+  opacity: 0.45;
+}
+
+.hit {
+  fill: transparent;
+  cursor: default;
+}
+
+.grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.baseline {
+  stroke: var(--baseline);
+  stroke-width: 1;
+}
+
+.crosshair {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.tick {
+  fill: var(--muted);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Legend and tooltip keys mirror the marks: a block for bars, a short stroke in the tooltip */
+.legend {
+  display: flex;
+  gap: 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.swatch.opened,
+.key.opened {
+  background: var(--opened);
+}
+
+.swatch.fixed,
+.key.fixed {
+  background: var(--fixed);
+}
+
+.tooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  margin-top: -6px;
+  pointer-events: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+  padding: 6px 10px;
+  font-size: 12.5px;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.tooltip-title {
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key {
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+/* Time to fix: each severity on its own SLA, which sits at the middle of the track */
+.ttf {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 10px;
+  align-items: center;
+}
+
+.ttf-axis,
+.ttf-row {
+  display: contents;
+}
+
+.ttf-scale {
+  position: relative;
+  height: 14px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.ttf-scale span {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.ttf-scale span:first-child {
+  transform: none;
+}
+
+.ttf-scale span:last-child {
+  transform: translateX(-100%);
+}
+
+.ttf-track {
+  position: relative;
+  height: 12px;
+  border-left: 1px solid var(--baseline);
+}
+
+.ttf-sla {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  bottom: -4px;
+  border-left: 1px solid var(--muted);
+}
+
+.ttf-bar {
+  height: 100%;
+  background: var(--fixed);
+  border-radius: 0 4px 4px 0;
+}
+
+.ttf-overflow {
+  position: absolute;
+  right: -10px;
+  top: -4px;
+  color: var(--muted);
+}
+
+.ttf-value {
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.over-sla {
+  margin-left: 6px;
+}
+
+.overdue {
+  margin-bottom: 20px;
+}
+
+.overdue .sub {
+  margin-bottom: 8px;
+}
+
+.more-button {
+  margin-top: 8px;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-data summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .ttf {
+    grid-template-columns: auto 1fr;
+  }
+
+  .ttf-axis > span:last-child {
+    display: none;
+  }
+
+  .ttf-value {
+    grid-column: 1 / -1;
+    margin-top: -6px;
+    white-space: normal;
+  }
+}

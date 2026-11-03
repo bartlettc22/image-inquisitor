@@ -1,0 +1,13 @@
+diff --git a/deploy/nvr/values.yaml b/deploy/nvr/values.yaml
+index 1111111..2222222 100644
+--- a/deploy/nvr/values.yaml
++++ b/deploy/nvr/values.yaml
+@@ -2,7 +2,7 @@ workload:
+   enabled: true
+   containers:
+     - name: nvr
+-      image: ghcr.io/example-org/nvr:0.16.4
++      image: ghcr.io/example-org/nvr:0.18.2
+       imagePullPolicy: IfNotPresent
+       securityContext:
+         allowPrivilegeEscalation: false

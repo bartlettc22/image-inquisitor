@@ -1,4 +1,7 @@
 .vscode
-.reports/
-.exports/
-.trivy-results/
+
+# Local config and data
+config.local.yaml
+.data/
+ui/node_modules/
+ui/dist/

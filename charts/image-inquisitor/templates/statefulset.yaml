@@ -1,0 +1,156 @@
+{{- $githubSecret := include "image-inquisitor.githubSecret" . }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "image-inquisitor.fullname" . }}
+  labels:
+    {{- include "image-inquisitor.componentLabels" (dict "ctx" . "component" "daemon") | nindent 4 }}
+spec:
+  # Always one: the daemon's state is a SQLite database on a ReadWriteOnce volume
+  replicas: 1
+  serviceName: {{ include "image-inquisitor.fullname" . }}
+  selector:
+    matchLabels:
+      {{- include "image-inquisitor.componentSelectorLabels" (dict "ctx" . "component" "daemon") | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include "image-inquisitor.config" . | sha256sum }}
+        {{- with .Values.daemon.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "image-inquisitor.componentLabels" (dict "ctx" . "component" "daemon") | nindent 8 }}
+        {{- with .Values.daemon.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "image-inquisitor.fullname" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.daemon.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: daemon
+        image: "{{ .Values.daemon.image.repository }}:{{ .Values.daemon.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.daemon.image.pullPolicy }}
+        args:
+        - serve
+        - --config=/etc/imginq/config.yaml
+        - --log-level={{ .Values.daemon.logLevel }}
+        - --log-format={{ .Values.daemon.logFormat }}
+        {{- with .Values.daemon.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.daemon.service.port }}
+        env:
+        {{- if $githubSecret }}
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ $githubSecret }}
+              key: {{ if .Values.github.existingSecret }}{{ .Values.github.existingSecretKey }}{{ else }}token{{ end }}
+        {{- end }}
+        {{- if .Values.registryCredentials.existingSecret }}
+        - name: DOCKER_CONFIG
+          value: /etc/imginq/docker
+        {{- end }}
+        {{- with .Values.daemon.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 30
+        {{- with .Values.daemon.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: config
+          mountPath: /etc/imginq/config.yaml
+          subPath: config.yaml
+          readOnly: true
+        - name: data
+          mountPath: /var/lib/imginq
+        - name: tmp
+          mountPath: /tmp
+        {{- if .Values.registryCredentials.existingSecret }}
+        - name: docker-config
+          mountPath: /etc/imginq/docker
+          readOnly: true
+        {{- end }}
+        {{- if .Values.kubeconfig.existingSecret }}
+        - name: kubeconfig
+          mountPath: /etc/imginq/kubeconfig
+          readOnly: true
+        {{- end }}
+        {{- with .Values.daemon.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "image-inquisitor.fullname" . }}
+      - name: tmp
+        emptyDir: {}
+      {{- if not .Values.daemon.persistence.enabled }}
+      - name: data
+        emptyDir: {}
+      {{- end }}
+      {{- if .Values.registryCredentials.existingSecret }}
+      - name: docker-config
+        secret:
+          secretName: {{ .Values.registryCredentials.existingSecret }}
+          items:
+          - key: .dockerconfigjson
+            path: config.json
+      {{- end }}
+      {{- if .Values.kubeconfig.existingSecret }}
+      - name: kubeconfig
+        secret:
+          secretName: {{ .Values.kubeconfig.existingSecret }}
+          items:
+          - key: {{ .Values.kubeconfig.existingSecretKey }}
+            path: config
+      {{- end }}
+      {{- with .Values.daemon.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if .Values.daemon.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ReadWriteOnce]
+      {{- with .Values.daemon.persistence.storageClass }}
+      storageClassName: {{ . | quote }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.daemon.persistence.size | quote }}
+  {{- end }}

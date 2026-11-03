@@ -1,0 +1,11 @@
+diff --git a/deploy/db/values.yaml b/deploy/db/values.yaml
+index 1111111..2222222 100644
+--- a/deploy/db/values.yaml
++++ b/deploy/db/values.yaml
+@@ -3,5 +3,5 @@ workload:
+   containers:
+   - name: db
+-    image: "quay.io/example/db:v3.6.11@sha256:1111111111111111111111111111111111111111111111111111111111111111"
++    image: "quay.io/example/db:v3.6.12@sha256:2222222222222222222222222222222222222222222222222222222222222222"
+     ports:
+     - containerPort: 2379

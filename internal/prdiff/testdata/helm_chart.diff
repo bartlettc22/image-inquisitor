@@ -1,0 +1,13 @@
+diff --git a/deploy/operator/deploy.yaml b/deploy/operator/deploy.yaml
+index 1111111..2222222 100644
+--- a/deploy/operator/deploy.yaml
++++ b/deploy/operator/deploy.yaml
+@@ -2,7 +2,7 @@ namespace: operator
+ helm:
+ - repoURL: https://charts.example.com/stable
+   chart: example-operator
+-  targetRevision: 1.92.5
++  targetRevision: 1.102.4
+ - repoURL: https://github.com/example-org/helm-charts.git
+   path: charts/lib-common
+   valuesFiles:
