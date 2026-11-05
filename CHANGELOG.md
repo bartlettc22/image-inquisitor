@@ -1,3 +1,7 @@
+# v0.5.1
+Fixed:
+* Renovate failing on every run with `EACCES` on `/cache/containerbase`: it couldn't write to its cache volume
+
 # v0.5.0
 Adds a page for every image, and a permanent record of every image that runs in your clusters. See [Using the UI](docs/ui.md).
 

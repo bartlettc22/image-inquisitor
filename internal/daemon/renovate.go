@@ -33,6 +33,9 @@ const (
 
 	renovateCacheDir = "/cache"
 
+	// renovateFSGroup owns the cache volume so Renovate, which doesn't run as root, can write to it
+	renovateFSGroup = int64(12021)
+
 	managedByLabel     = "app.kubernetes.io/managed-by"
 	managedByValue     = "image-inquisitor"
 	renovateRunLabel   = "image-inquisitor.io/renovate-run"
@@ -223,7 +226,9 @@ func (r *RenovateConfig) job(runID int64, repos []string, soakRules []map[string
 					DNSConfig:                    r.DNSConfig,
 					NodeSelector:                 r.NodeSelector,
 					SecurityContext: &corev1.PodSecurityContext{
-						SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+						FSGroup:             ptr(renovateFSGroup),
+						FSGroupChangePolicy: ptr(corev1.FSGroupChangeOnRootMismatch),
+						SeccompProfile:      &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
 					},
 					Containers: []corev1.Container{{
 						Name:      renovateContainer,

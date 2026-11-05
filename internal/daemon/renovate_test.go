@@ -94,6 +94,7 @@ func TestRenovateJob(t *testing.T) {
 	assert.Equal(t, "7", job.Spec.Template.Labels[renovateRunLabel])
 	assert.False(t, *pod.AutomountServiceAccountToken)
 	assert.Equal(t, "renovate-cache", pod.Volumes[0].PersistentVolumeClaim.ClaimName)
+	assert.Equal(t, renovateFSGroup, *pod.SecurityContext.FSGroup, "a new cache volume is root's, and Renovate isn't")
 
 	ctr := pod.Containers[0]
 	assert.Equal(t, "ghcr.io/renovatebot/renovate:44.181.6", ctr.Image)
