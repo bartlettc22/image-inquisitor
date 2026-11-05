@@ -70,6 +70,11 @@ export function imageName(ref: string): string {
   return colon >= 0 ? base.slice(0, colon) : base;
 }
 
+// imageHref links to an image's page, from any reference or repository
+export function imageHref(ref: string): string {
+  return `#/image/${shortRepository(imageName(ref))}`;
+}
+
 export const kindLabel = (kind: Change['kind']) => (kind === 'image' ? 'image' : 'chart');
 
 // timeUntil is the future counterpart of timeAgo, e.g. "in 6m"

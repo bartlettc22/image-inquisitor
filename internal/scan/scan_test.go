@@ -86,3 +86,22 @@ func TestResolveDigestReference(t *testing.T) {
 	assert.Equal(t, "index.docker.io/library/nginx", repo)
 	assert.Equal(t, "sha256:abc", digest)
 }
+
+func TestVersion(t *testing.T) {
+	dir := t.TempDir()
+	script := func(body string) *Scanner {
+		path := filepath.Join(dir, "trivy")
+		require.NoError(t, os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755))
+		return &Scanner{Trivy: path, Dir: dir}
+	}
+
+	version, err := script(`[ "$1 $2 $3" = "version --format json" ] && echo '{"Version":"0.65.0","VulnerabilityDB":{"Version":2}}'`).Version(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "0.65.0", version)
+
+	_, err = script(`echo boom >&2; exit 1`).Version(context.Background())
+	assert.ErrorContains(t, err, "boom")
+
+	_, err = script(`echo not json`).Version(context.Background())
+	assert.ErrorContains(t, err, "error parsing trivy version")
+}

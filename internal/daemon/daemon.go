@@ -44,8 +44,10 @@ type Daemon struct {
 	trigger  chan struct{}
 
 	// scanner is nil when scanning is disabled
-	scanner     *scan.Scanner
-	scanTrigger chan struct{}
+	scanner *scan.Scanner
+	// trivyVersion is empty if it couldn't be read
+	trivyVersion string
+	scanTrigger  chan struct{}
 
 	activity   activity
 	cacheSizes cacheSizes
@@ -91,6 +93,9 @@ func New(c *Config, gh *github.Client, s *store.Store) (*Daemon, error) {
 			svcLog.WithError(err).Warn("trivy not found, scanning disabled")
 		} else {
 			d.scanner = &scan.Scanner{Trivy: c.Scan.Trivy, Dir: filepath.Join(c.DataDir, "scan")}
+			if d.trivyVersion, err = d.scanner.Version(context.Background()); err != nil {
+				svcLog.WithError(err).Warn("error reading trivy version")
+			}
 		}
 	}
 
@@ -156,6 +161,10 @@ func (d *Daemon) Run(ctx context.Context) {
 		go d.renovateLoop(ctx)
 	}
 
+	for _, cl := range d.clusters {
+		go d.watchCluster(ctx, cl)
+	}
+
 	for {
 		d.sync(ctx)
 		d.triggerScan()
@@ -176,6 +185,11 @@ func (d *Daemon) Run(ctx context.Context) {
 // Scanning reports whether PR images are scanned (scanning is enabled and trivy was found)
 func (d *Daemon) Scanning() bool {
 	return d.scanner != nil
+}
+
+// TrivyVersion is the version of the Trivy that scans images, empty if unknown or scanning is off
+func (d *Daemon) TrivyVersion() string {
+	return d.trivyVersion
 }
 
 // Trigger requests a sync as soon as the current one (if any) finishes

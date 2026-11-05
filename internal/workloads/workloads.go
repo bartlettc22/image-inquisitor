@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -49,7 +50,8 @@ type Filter struct {
 	ExcludeNamespaces []string
 }
 
-func (f Filter) allows(namespace string) bool {
+// Allows reports whether the filter includes a namespace
+func (f Filter) Allows(namespace string) bool {
 	if len(f.IncludeNamespaces) > 0 && !slices.Contains(f.IncludeNamespaces, namespace) {
 		return false
 	}
@@ -153,7 +155,7 @@ func (o *objects) containers(cluster string, filter Filter) []Container {
 	runningCronJobs := map[string]bool{}
 
 	for _, pod := range o.pods {
-		if !filter.allows(pod.Namespace) || pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		if !filter.Allows(pod.Namespace) || pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 			continue
 		}
 
@@ -200,7 +202,7 @@ func (o *objects) containers(cluster string, filter Filter) []Container {
 
 	// CronJobs without a running job still count, from their template
 	for _, cj := range o.cronJobs {
-		if !filter.allows(cj.Namespace) || runningCronJobs[cj.Namespace+"/"+cj.Name] {
+		if !filter.Allows(cj.Namespace) || runningCronJobs[cj.Namespace+"/"+cj.Name] {
 			continue
 		}
 		spec := cj.Spec.JobTemplate.Spec.Template.Spec
@@ -266,4 +268,95 @@ func digest(imageID string) string {
 		return d
 	}
 	return ""
+}
+
+// Types of container in PodContainer, besides a regular one
+const (
+	ContainerTypeInit      = "init"
+	ContainerTypeEphemeral = "ephemeral"
+)
+
+// PodContainer is the state of one container of a pod, including ephemeral debug containers
+type PodContainer struct {
+	Name  string
+	Type  string
+	Image string
+
+	// Digest is empty until the kubelet reports it
+	Digest string
+
+	// StartedAt is zero until the container has started
+	StartedAt time.Time
+
+	// FinishedAt is set once the container is done for good. A regular container that exits
+	// in a running pod may restart, so it only finishes with its pod.
+	FinishedAt time.Time
+}
+
+// PodContainers lists the containers of a pod with their current state
+func PodContainers(pod *corev1.Pod) []PodContainer {
+	statuses := map[string]corev1.ContainerStatus{}
+	for _, list := range [][]corev1.ContainerStatus{pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses, pod.Status.EphemeralContainerStatuses} {
+		for _, s := range list {
+			statuses[s.Name] = s
+		}
+	}
+	podDone := PodFinished(pod)
+
+	containers := []PodContainer{}
+	add := func(name, kind, image string, restarts bool) {
+		c := PodContainer{Name: name, Type: kind, Image: image}
+		if s, ok := statuses[name]; ok {
+			c.Digest = digest(s.ImageID)
+			switch last := s.LastTerminationState.Terminated; {
+			case s.State.Running != nil:
+				c.StartedAt = s.State.Running.StartedAt.Time
+			case s.State.Terminated != nil:
+				c.StartedAt = s.State.Terminated.StartedAt.Time
+				if !restarts || podDone {
+					c.FinishedAt = s.State.Terminated.FinishedAt.Time
+				}
+			case last != nil:
+				c.StartedAt = last.StartedAt.Time
+			}
+		}
+		containers = append(containers, c)
+	}
+	for _, c := range pod.Spec.InitContainers {
+		// Sidecars are init containers that keep running with the pod
+		sidecar := c.RestartPolicy != nil && *c.RestartPolicy == corev1.ContainerRestartPolicyAlways
+		add(c.Name, ContainerTypeInit, c.Image, sidecar)
+	}
+	for _, c := range pod.Spec.Containers {
+		add(c.Name, "", c.Image, true)
+	}
+	for _, c := range pod.Spec.EphemeralContainers {
+		add(c.Name, ContainerTypeEphemeral, c.Image, false)
+	}
+	return containers
+}
+
+// PodFinished reports whether a pod has run to completion
+func PodFinished(pod *corev1.Pod) bool {
+	return pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed
+}
+
+// PodWorkload returns the workload that owns a pod. Deployments and CronJobs own theirs through
+// a ReplicaSet or Job, which lookup finds; one that's gone leaves that ReplicaSet or Job as the owner.
+func PodWorkload(pod *corev1.Pod, lookup func(kind, namespace, name string) *metav1.ObjectMeta) (kind, name string) {
+	owner := metav1.GetControllerOf(pod)
+	if owner == nil {
+		return "Pod", pod.Name
+	}
+	if meta := lookup(owner.Kind, pod.Namespace, owner.Name); meta != nil {
+		if parent := metav1.GetControllerOfNoCopy(meta); parent != nil {
+			return parent.Kind, parent.Name
+		}
+	}
+	return owner.Kind, owner.Name
+}
+
+// PodArgoApp returns the Argo CD application that manages a pod, if any
+func PodArgoApp(pod *corev1.Pod) string {
+	return argoApp(pod.ObjectMeta)
 }

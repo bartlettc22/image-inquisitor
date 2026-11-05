@@ -1,6 +1,6 @@
 # image-inquisitor Roadmap
 
-_As of 2026-11-02_
+_As of 2026-11-04_
 
 This page lists what's left to build. What already works is documented in the [docs](README.md).
 
@@ -10,11 +10,11 @@ imginq tells you which image updates matter. For each Renovate PR it shows the C
 
 - **What sets it apart:** the old-vs-new CVE diff, weighted by live usage across clusters. Renovate's vulnerability alerts cover package advisories, not container image scans.
 - **Where results show up:** mainly as comments, labels and checks on the Renovate PRs you already get. Reports and metrics come second.
-- **Scope:** homelab first (Argo CD, a mix of third-party and self-built images). Designed so it also works at work: GitHub App auth, Harbor, several clusters.
+- **Scope:** homelab first (Argo CD, a mix of third-party and self-built images). Designed so it also works at work: GitHub App auth, several clusters.
 
 ## Principles
 
-1. **Don't reinvent.** Renovate finds and edits the files. Trivy, Harbor and Trivy Operator do the scanning. Argo CD knows what is deployed and from where. imginq connects them.
+1. **Don't reinvent.** Renovate finds and edits the files. Trivy does the scanning. Argo CD knows what is deployed and from where. imginq connects them.
 2. **Deterministic core.** Inventory, scanning, diffing, version lookup and policy are plain code, so a priority is reproducible and auditable.
 3. **Agents are optional.** LLM steps add narrative (changelog risk, CVE relevance) on top of structured results and never set labels. The tool is fully useful without them.
 4. **Scan by digest, cache aggressively.** A digest never changes; only the vulnerability database does. Generate an SBOM once per digest, then re-check it against the current database.
@@ -37,7 +37,7 @@ flowchart LR
     HELM[Chart renderer<br/>chart version → images]
     INV[Inventory + provenance<br/>where each digest runs]
     VER[Version lookup<br/>semver, same variant]
-    SCAN[Scanners<br/>Trivy + SBOM cache · Harbor · Trivy Operator]
+    SCAN[Scanner<br/>Trivy + SBOM cache]
     POL[Policy<br/>tolerances → priority]
   end
 
@@ -95,10 +95,8 @@ Chart PRs already show their image changes in the UI. Done when chart PRs get th
 - [ ] Extract more diff shapes: split `repository:` / `tag:` values (common in third-party charts) and Kustomize `images:`
 - [ ] Scan the images a newer chart version would bring in before a PR exists
 
-### Phase 3 · Pluggable scanners
+### Phase 3 · Scanning
 
-- [ ] Harbor as a scanner, with a freshness check (it only covers images that pass through it, and its scans can be stale)
-- [ ] Trivy Operator `VulnerabilityReport`s as a scanner
 - [ ] Scan platforms other than linux/amd64, and build the images for them (both are amd64 only)
 
 ### Phase 4 · Live inventory
@@ -137,11 +135,14 @@ Done when comments explain upgrade risk, not just counts. Triggered only above t
 
 - [ ] Date more than the newest version: other updates Renovate proposes (e.g. a minor while a major exists) keep Renovate's own soak and stay held for registries without release dates
 - [ ] Handle repo `renovate.json` packageRules that override the generated ones
+- [ ] Soak charts by the CVEs of their images: soak rules only match the image, so a chart-pinned image's lane does nothing and its chart keeps the default soak, even when the update fixes criticals. Needs chart release dates, and would allow a progress bar on pinned images
+- [ ] Show which workloads a PR really updates, e.g. "updates 3 of 5": chart PRs map to apps, but direct image PRs need mapping from the file they change to the workloads it deploys. Until then one PR marks every workload on that tag as pending
+- [ ] Hide soak badges on chart-pinned images in the Running images table and the dashboard, as the image page does
+- [ ] Settle on "Fastlane" or "fast lane": the image page's Open PR panel says one, the badges the other
 
 ## Known issues
 
 - [ ] The UI and API have no authentication; anyone who can reach them can trigger syncs and Renovate runs
-- [ ] Tag v0.4.0 once merged to publish the first release from a tag
 
 ## Open questions
 

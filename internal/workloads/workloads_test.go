@@ -2,6 +2,7 @@ package workloads
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -36,8 +37,8 @@ func pod(m metav1.ObjectMeta, image, imageID string) corev1.Pod {
 }
 
 func TestContainers(t *testing.T) {
-	deploy := appsv1.Deployment{ObjectMeta: meta("media", "romm", "d1", nil)}
-	deploy.Annotations = map[string]string{argoTrackingIDAnnotation: "romm:apps/Deployment:media/romm"}
+	deploy := appsv1.Deployment{ObjectMeta: meta("media", "app", "d1", nil)}
+	deploy.Annotations = map[string]string{argoTrackingIDAnnotation: "app:apps/Deployment:media/app"}
 
 	cron := batchv1.CronJob{ObjectMeta: meta("ops", "backup", "c1", nil)}
 	cron.Spec.JobTemplate.Spec.Template.Spec.Containers = []corev1.Container{{Name: "backup", Image: "restic/restic:0.17"}}
@@ -59,10 +60,10 @@ func TestContainers(t *testing.T) {
 		deployments:  []appsv1.Deployment{deploy},
 		statefulSets: []appsv1.StatefulSet{prom},
 		cronJobs:     []batchv1.CronJob{cron, idle},
-		replicaSets:  []appsv1.ReplicaSet{{ObjectMeta: meta("media", "romm-abc", "rs1", controller("Deployment", "romm", "d1"))}},
+		replicaSets:  []appsv1.ReplicaSet{{ObjectMeta: meta("media", "app-abc", "rs1", controller("Deployment", "app", "d1"))}},
 		jobs:         []batchv1.Job{{ObjectMeta: meta("ops", "backup-123", "j1", controller("CronJob", "backup", "c1"))}},
 		pods: []corev1.Pod{
-			pod(meta("media", "romm-abc-x", "p1", controller("ReplicaSet", "romm-abc", "rs1")), "rommapp/romm:3.9.0", "docker.io/rommapp/romm@sha256:aaa"),
+			pod(meta("media", "app-abc-x", "p1", controller("ReplicaSet", "app-abc", "rs1")), "org/app:3.9.0", "docker.io/org/app@sha256:aaa"),
 			pod(meta("ops", "backup-123-y", "p2", controller("Job", "backup-123", "j1")), "restic/restic:0.17", "docker-pullable://restic/restic@sha256:bbb"),
 			pod(meta("default", "debug", "p3", nil), "alpine:3.20", "sha256:ccc"),
 			pod(meta("mon", "prometheus-main-0", "p5", controller("StatefulSet", "prometheus-main", "s1")), "quay.io/prometheus/prometheus:v3.0.0", ""),
@@ -71,14 +72,63 @@ func TestContainers(t *testing.T) {
 		},
 	}
 
-	containers := o.containers("bernes", Filter{ExcludeNamespaces: []string{"kube-system"}})
+	containers := o.containers("lab", Filter{ExcludeNamespaces: []string{"kube-system"}})
 
 	assert.Equal(t, []Container{
-		{Cluster: "bernes", Namespace: "media", WorkloadKind: "Deployment", WorkloadName: "romm", Pod: "romm-abc-x", Container: "main", Image: "rommapp/romm:3.9.0", Digest: "sha256:aaa", ArgoApp: "romm"},
-		{Cluster: "bernes", Namespace: "ops", WorkloadKind: "CronJob", WorkloadName: "backup", Pod: "backup-123-y", Container: "main", Image: "restic/restic:0.17", Digest: "sha256:bbb"},
-		{Cluster: "bernes", Namespace: "default", WorkloadKind: "Pod", WorkloadName: "debug", Pod: "debug", Container: "main", Image: "alpine:3.20"},
-		{Cluster: "bernes", Namespace: "mon", WorkloadKind: "Prometheus", WorkloadName: "main", Pod: "prometheus-main-0", Container: "main", Image: "quay.io/prometheus/prometheus:v3.0.0", ArgoApp: "prometheus"},
+		{Cluster: "lab", Namespace: "media", WorkloadKind: "Deployment", WorkloadName: "app", Pod: "app-abc-x", Container: "main", Image: "org/app:3.9.0", Digest: "sha256:aaa", ArgoApp: "app"},
+		{Cluster: "lab", Namespace: "ops", WorkloadKind: "CronJob", WorkloadName: "backup", Pod: "backup-123-y", Container: "main", Image: "restic/restic:0.17", Digest: "sha256:bbb"},
+		{Cluster: "lab", Namespace: "default", WorkloadKind: "Pod", WorkloadName: "debug", Pod: "debug", Container: "main", Image: "alpine:3.20"},
+		{Cluster: "lab", Namespace: "mon", WorkloadKind: "Prometheus", WorkloadName: "main", Pod: "prometheus-main-0", Container: "main", Image: "quay.io/prometheus/prometheus:v3.0.0", ArgoApp: "prometheus"},
 		// backup is running, so only the idle CronJob comes from its template
-		{Cluster: "bernes", Namespace: "ops", WorkloadKind: "CronJob", WorkloadName: "cleanup", Container: "cleanup", Image: "busybox:1.36", ArgoApp: "ops"},
+		{Cluster: "lab", Namespace: "ops", WorkloadKind: "CronJob", WorkloadName: "cleanup", Container: "cleanup", Image: "busybox:1.36", ArgoApp: "ops"},
 	}, containers)
+}
+
+func TestPodContainers(t *testing.T) {
+	started := metav1.NewTime(time.Unix(1_700_000_000, 0).UTC())
+	finished := metav1.NewTime(started.Add(time.Minute))
+	terminated := corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{StartedAt: started, FinishedAt: finished}}
+	always := corev1.ContainerRestartPolicyAlways
+
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			InitContainers: []corev1.Container{
+				{Name: "setup", Image: "setup:1"},
+				{Name: "sidecar", Image: "sidecar:1", RestartPolicy: &always},
+			},
+			Containers: []corev1.Container{
+				{Name: "app", Image: "app:1"},
+				{Name: "crashing", Image: "crash:1"},
+				{Name: "pending", Image: "pending:1"},
+			},
+			EphemeralContainers: []corev1.EphemeralContainer{{EphemeralContainerCommon: corev1.EphemeralContainerCommon{Name: "debug", Image: "debug:1"}}},
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodRunning,
+			InitContainerStatuses: []corev1.ContainerStatus{
+				{Name: "setup", ImageID: "setup@sha256:s", State: terminated},
+				{Name: "sidecar", ImageID: "sidecar@sha256:c", State: terminated},
+			},
+			ContainerStatuses: []corev1.ContainerStatus{
+				{Name: "app", ImageID: "app@sha256:a", State: terminated},
+				{Name: "crashing", ImageID: "crash@sha256:x", State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "CrashLoopBackOff"}},
+					LastTerminationState: terminated},
+			},
+			EphemeralContainerStatuses: []corev1.ContainerStatus{{Name: "debug", ImageID: "debug@sha256:d", State: terminated}},
+		},
+	}
+
+	end := finished.Time
+	assert.Equal(t, []PodContainer{
+		{Name: "setup", Type: ContainerTypeInit, Image: "setup:1", Digest: "sha256:s", StartedAt: started.Time, FinishedAt: end},
+		{Name: "sidecar", Type: ContainerTypeInit, Image: "sidecar:1", Digest: "sha256:c", StartedAt: started.Time},
+		{Name: "app", Image: "app:1", Digest: "sha256:a", StartedAt: started.Time},
+		{Name: "crashing", Image: "crash:1", Digest: "sha256:x", StartedAt: started.Time},
+		{Name: "pending", Image: "pending:1"},
+		{Name: "debug", Type: ContainerTypeEphemeral, Image: "debug:1", Digest: "sha256:d", StartedAt: started.Time, FinishedAt: end},
+	}, PodContainers(pod))
+
+	// Once the pod is done, its regular containers won't restart
+	pod.Status.Phase = corev1.PodSucceeded
+	assert.Equal(t, end, PodContainers(pod)[2].FinishedAt)
 }

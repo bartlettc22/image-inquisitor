@@ -93,8 +93,17 @@ type RunningImage struct {
 	// Soak is how long the update to the newest version soaks before Renovate may propose it
 	Soak *daemon.SoakDecision `json:"soak,omitempty"`
 
-	// runningRef is the reference the daemon scans for the image (scan.RunningRef)
+	// Vulnerabilities are the running digest's CVEs, only included for a single image
+	Vulnerabilities []scan.Vulnerability `json:"vulnerabilities,omitempty"`
+
+	// DigestScans are the scans of each digest when the tag runs as several, as Scan only covers
+	// one of them; only included for a single image
+	DigestScans []ScanSide `json:"digestScans,omitempty"`
+
+	// runningRef is the reference the daemon scans for the image (scan.RunningRef), and
+	// digestRefs that of each digest
 	runningRef string
+	digestRefs map[string]string
 }
 
 // Coverage is an open PR updating a running image's repository
@@ -111,6 +120,17 @@ type Coverage struct {
 	// Via is the chart change that updates the image, e.g. "cert-manager v1.18.2 → v1.19.0";
 	// empty when the PR updates the image directly
 	Via string `json:"via,omitempty"`
+}
+
+// ImageDetail is everything known about one image repository
+type ImageDetail struct {
+	Repository string `json:"repository"`
+
+	// Tags are the versions of the image running in the inventoried clusters
+	Tags []RunningImage `json:"tags"`
+
+	// PullRequests are the open PRs changing the image, whether or not it's running
+	PullRequests []Coverage `json:"pullRequests"`
 }
 
 // imageRef is a normalized image reference: registry/repository plus tag and/or digest
@@ -309,6 +329,7 @@ func runningImages(containers []parsedContainer, openPRs []*store.PullRequest, v
 			Digests:    []string{},
 			Workloads:  groupWorkloads(g.containers),
 			CoveredBy:  []Coverage{},
+			digestRefs: map[string]string{},
 		}
 		for _, w := range image.Workloads {
 			for _, d := range w.Digests {
@@ -319,47 +340,25 @@ func runningImages(containers []parsedContainer, openPRs []*store.PullRequest, v
 		}
 
 		for _, pr := range openPRs {
-			cover := func(fromImage, toImage, via string) {
-				from, ok := parseImage(fromImage)
-				if !ok || from.repository != g.ref.repository {
-					return
-				}
-				matches := false
-				for _, c := range g.containers {
-					matches = matches || from.matches(c.ref, c.Digest)
-				}
-				coverage := Coverage{
-					Repo: pr.Repo, Number: pr.Number, Title: pr.Title,
-					From: fromImage, To: toImage, MatchesRunning: matches, Via: via,
-				}
-				if !slices.Contains(image.CoveredBy, coverage) {
-					image.CoveredBy = append(image.CoveredBy, coverage)
-				}
-			}
-
-			for _, change := range pr.Changes {
-				if change.Kind == prdiff.KindImage {
-					cover(change.From, change.To, "")
-				}
-			}
-			for _, cr := range pr.ChartRenders {
-				if cr.Change >= len(pr.Changes) {
+			for _, u := range imageUpdates(pr) {
+				if imageRepository(u.from) != g.ref.repository {
 					continue
 				}
-				change := pr.Changes[cr.Change]
-				for _, diff := range cr.Images {
-					if diff.From != "" {
-						cover(diff.From, diff.To, change.Name+" "+change.From+" → "+change.To)
-					}
+				if coverage := newCoverage(pr, u, g.containers); !slices.Contains(image.CoveredBy, coverage) {
+					image.CoveredBy = append(image.CoveredBy, coverage)
 				}
 			}
 		}
 
 		for _, c := range g.containers {
-			if c.Digest != "" {
-				image.runningRef = scan.RunningRef(c.Image, c.Digest)
-				break
+			if c.Digest == "" {
+				continue
 			}
+			ref := scan.RunningRef(c.Image, c.Digest)
+			if image.runningRef == "" {
+				image.runningRef = ref
+			}
+			image.digestRefs[c.Digest] = ref
 		}
 
 		image.Version = versions.get(store.VersionKindImage, image.Repository, image.Tag)
@@ -376,25 +375,119 @@ func runningImages(containers []parsedContainer, openPRs []*store.PullRequest, v
 	return images
 }
 
+// imageUpdate is an image a PR changes, directly or through a chart. From is empty for a
+// container a chart adds and To for one it removes.
+type imageUpdate struct {
+	from, to string
+
+	// via is the chart change making the update, e.g. "cert-manager v1.18.2 → v1.19.0"
+	via string
+}
+
+// imageUpdates lists the images a PR changes
+func imageUpdates(pr *store.PullRequest) []imageUpdate {
+	updates := []imageUpdate{}
+	for _, change := range pr.Changes {
+		if change.Kind == prdiff.KindImage {
+			updates = append(updates, imageUpdate{from: change.From, to: change.To})
+		}
+	}
+	for _, cr := range pr.ChartRenders {
+		if cr.Change >= len(pr.Changes) {
+			continue
+		}
+		change := pr.Changes[cr.Change]
+		for _, diff := range cr.Images {
+			updates = append(updates, imageUpdate{diff.From, diff.To, change.Name + " " + change.From + " → " + change.To})
+		}
+	}
+	return updates
+}
+
+// imageRepository returns a reference's normalized repository, or "" if it isn't a valid one
+func imageRepository(ref string) string {
+	parsed, ok := parseImage(ref)
+	if !ok {
+		return ""
+	}
+	return parsed.repository
+}
+
+// newCoverage describes a PR's update of an image, checking its From version against containers
+func newCoverage(pr *store.PullRequest, u imageUpdate, containers []parsedContainer) Coverage {
+	coverage := Coverage{Repo: pr.Repo, Number: pr.Number, Title: pr.Title, From: u.from, To: u.to, Via: u.via}
+	if from, ok := parseImage(u.from); ok {
+		coverage.MatchesRunning = slices.ContainsFunc(containers, func(c parsedContainer) bool {
+			return from.matches(c.ref, c.Digest)
+		})
+	}
+	return coverage
+}
+
+// imageDetail collects the open PRs changing a repository, alongside its running tags
+func imageDetail(repository string, tags []RunningImage, containers []parsedContainer, openPRs []*store.PullRequest) *ImageDetail {
+	detail := &ImageDetail{Repository: repository, Tags: tags, PullRequests: []Coverage{}}
+	for _, pr := range openPRs {
+		for _, u := range imageUpdates(pr) {
+			if imageRepository(u.from) != repository && imageRepository(u.to) != repository {
+				continue
+			}
+			if coverage := newCoverage(pr, u, containers); !slices.Contains(detail.PullRequests, coverage) {
+				detail.PullRequests = append(detail.PullRequests, coverage)
+			}
+		}
+	}
+	return detail
+}
+
 // attachRunningScans adds the scan of each image's running digest and, when a newer version
-// exists, the CVEs updating to it fixes and introduces
-func attachRunningScans(images []RunningImage, idx *scanIndex) error {
+// exists, the CVEs updating to it fixes and introduces. Vulnerability lists are only included
+// when withVulnerabilities is set.
+func attachRunningScans(images []RunningImage, idx *scanIndex, withVulnerabilities bool) error {
 	for i := range images {
 		img := &images[i]
 		if img.runningRef == "" {
 			continue
 		}
-		var err error
-		if img.Scan, _, err = idx.side(img.runningRef); err != nil {
+		side, vulns, err := idx.side(img.runningRef)
+		if err != nil {
 			return err
+		}
+		img.Scan = side
+		if withVulnerabilities {
+			img.Vulnerabilities = vulns
+			if img.DigestScans, err = digestScans(img, idx); err != nil {
+				return err
+			}
 		}
 		if v := img.Version; v != nil && v.Error == "" && v.Latest != "" && v.Latest != v.Current {
 			if img.Update, err = idx.delta(img.runningRef, scan.TagRef(img.Repository, v.Latest)); err != nil {
 				return err
 			}
+			if withVulnerabilities {
+				img.Update.withVulnerabilities()
+			}
 		}
 	}
 	return nil
+}
+
+// digestScans returns the scan of each digest of an image running as several, in image.Digests'
+// order; nil when there's only one, which Scan already covers
+func digestScans(image *RunningImage, idx *scanIndex) ([]ScanSide, error) {
+	if len(image.Digests) < 2 {
+		return nil, nil
+	}
+	sides := make([]ScanSide, 0, len(image.Digests))
+	for _, digest := range image.Digests {
+		side, _, err := idx.side(image.digestRefs[digest])
+		if err != nil {
+			return nil, err
+		}
+		side.Digest = digest
+		sides = append(sides, *side)
+	}
+	return sides, nil
 }
 
 // attachSoaks adds each image's soak decision, for the update from its tag to the newest version

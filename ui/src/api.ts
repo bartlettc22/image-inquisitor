@@ -1,4 +1,4 @@
-import type { ActivityReport, App, PullRequest, RunningImage, Status, Trends } from './types';
+import type { ActivityReport, App, HistoryResponse, ImageDetail, PullRequest, RunningImage, Status, Trends } from './types';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(path, init);
@@ -19,6 +19,14 @@ export const getPullRequest = (repo: string, number: number) =>
   request<PullRequest>(`/api/v1/prs/${repo}/${number}`);
 
 export const listRunningImages = () => request<RunningImage[]>('/api/v1/images');
+
+export const getImage = (repository: string) => request<ImageDetail>(`/api/v1/images/${repository}`);
+
+// getHistory searches the image history; at is an ISO time the entries were present
+export const getHistory = (params: { repository?: string; q?: string; at?: string }) => {
+  const query = new URLSearchParams(Object.entries(params).filter((p): p is [string, string] => !!p[1]));
+  return request<HistoryResponse>(`/api/v1/history?${query}`);
+};
 
 export const listApps = () => request<App[]>('/api/v1/apps');
 

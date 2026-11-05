@@ -14,7 +14,7 @@ import (
 func TestListOwnerRepos(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/orgs/etalore/repos":
+		case "/orgs/example/repos":
 			// Two pages: 100 repos, then one
 			if r.URL.Query().Get("page") == "1" {
 				fmt.Fprint(w, "[")
@@ -22,14 +22,14 @@ func TestListOwnerRepos(t *testing.T) {
 					if i > 0 {
 						fmt.Fprint(w, ",")
 					}
-					fmt.Fprintf(w, `{"full_name":"etalore/r%d","owner":{"login":"etalore"}}`, i)
+					fmt.Fprintf(w, `{"full_name":"example/r%d","owner":{"login":"example"}}`, i)
 				}
 				fmt.Fprint(w, "]")
 				return
 			}
-			fmt.Fprint(w, `[{"full_name":"etalore/last","archived":true,"owner":{"login":"etalore"}}]`)
+			fmt.Fprint(w, `[{"full_name":"example/last","archived":true,"owner":{"login":"example"}}]`)
 		case "/user/repos":
-			fmt.Fprint(w, `[{"full_name":"chris/private","owner":{"login":"chris"}},{"full_name":"etalore/x","owner":{"login":"etalore"}}]`)
+			fmt.Fprint(w, `[{"full_name":"chris/private","owner":{"login":"chris"}},{"full_name":"example/x","owner":{"login":"example"}}]`)
 		case "/users/someone/repos":
 			fmt.Fprint(w, `[{"full_name":"someone/public","fork":true,"owner":{"login":"someone"}}]`)
 		default:
@@ -39,7 +39,7 @@ func TestListOwnerRepos(t *testing.T) {
 	defer srv.Close()
 	c := NewClient(srv.URL, "token")
 
-	repos, err := c.ListOwnerRepos(context.Background(), "etalore")
+	repos, err := c.ListOwnerRepos(context.Background(), "example")
 	require.NoError(t, err)
 	require.Len(t, repos, pageSize+1)
 	assert.True(t, repos[pageSize].Archived)

@@ -106,7 +106,8 @@ config:
       excludeNamespaces: [kube-system]
 ```
 
-The credentials for each context need read access (`get`, `list`) to:
+The credentials for each context need read access (`get`, `list`) to the resources below, and
+`watch` on `pods`, `replicasets` and `jobs` for the [image history](how-it-works.md#image-history):
 
 | API group | Resources |
 |---|---|
@@ -158,10 +159,10 @@ docker run -d --name imginq --network imginq \
   -v ./config.yaml:/etc/imginq/config.yaml:ro \
   -v ~/.kube/config:/kube/config:ro -e KUBECONFIG=/kube/config \
   -v imginq-data:/var/lib/imginq \
-  ghcr.io/bartlettc22/image-inquisitor:v0.4.0
+  ghcr.io/bartlettc22/image-inquisitor:v0.5.0
 docker run -d --name imginq-ui --network imginq -p 8081:8080 \
   -e API_UPSTREAM=http://imginq:8080 \
-  ghcr.io/bartlettc22/image-inquisitor-ui:v0.4.0
+  ghcr.io/bartlettc22/image-inquisitor-ui:v0.5.0
 ```
 
 The daemon runs as UID 1001, so mounted files must be readable by it. For private registries,

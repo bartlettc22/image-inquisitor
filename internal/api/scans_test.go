@@ -1,6 +1,7 @@
 package api
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -136,7 +137,7 @@ func TestAttachRunningScans(t *testing.T) {
 		{Kind: store.VersionKindImage, Repository: "example.com/db", Current: "2", Latest: "2"},
 	})
 	images := runningImages(containers, nil, versions)
-	require.NoError(t, attachRunningScans(images, idx))
+	require.NoError(t, attachRunningScans(images, idx, false))
 
 	byRepo := map[string]RunningImage{}
 	for _, img := range images {
@@ -156,4 +157,54 @@ func TestAttachRunningScans(t *testing.T) {
 	assert.Nil(t, db.Update, "already the newest")
 
 	assert.Nil(t, byRepo["example.com/backup"].Scan, "no running digest to scan")
+
+	// Lists are left out of the image list and included for a single image
+	assert.Empty(t, nginx.Vulnerabilities)
+	assert.Empty(t, nginx.Update.FixedVulnerabilities)
+
+	images = runningImages(containers, nil, versions)
+	require.NoError(t, attachRunningScans(images, idx, true))
+	i := slices.IndexFunc(images, func(img RunningImage) bool { return img.Repository == "index.docker.io/library/nginx" })
+	require.GreaterOrEqual(t, i, 0)
+	assert.Equal(t, vulns["sha256:running"], images[i].Vulnerabilities)
+	require.NotNil(t, images[i].Update)
+	assert.Len(t, images[i].Update.FixedVulnerabilities, 1)
+	assert.Empty(t, images[i].DigestScans, "one digest, which Scan covers")
+}
+
+func TestDigestScans(t *testing.T) {
+	vuln := scan.Vulnerability{ID: "CVE-1", Package: "openssl", Severity: scan.SeverityHigh}
+	refA := scan.RunningRef("nginx:1.27", "sha256:a")
+	refB := scan.RunningRef("nginx:1.27", "sha256:b")
+	idx := &scanIndex{
+		resolutions: map[string]store.Resolution{refA: {Ref: refA, Digest: "sha256:a"}, refB: {Ref: refB, Digest: "sha256:b"}},
+		scans: map[string]store.Scan{
+			"sha256:a": {Digest: "sha256:a", Counts: scan.Counts{}, ScannedAt: time.Now()},
+			"sha256:b": {Digest: "sha256:b", Counts: scan.Counts{scan.SeverityHigh: 1}, ScannedAt: time.Now()},
+		},
+		vulns: func(sc *store.Scan) ([]scan.Vulnerability, error) {
+			if sc.Digest == "sha256:b" {
+				return []scan.Vulnerability{vuln}, nil
+			}
+			return nil, nil
+		},
+	}
+	// The same tag on two workloads, pulled at different times
+	containers := parseContainers([]workloads.Container{
+		{Cluster: "home", Namespace: "a", WorkloadKind: "Deployment", WorkloadName: "a", Container: "c", Image: "nginx:1.27", Digest: "sha256:a"},
+		{Cluster: "home", Namespace: "b", WorkloadKind: "Deployment", WorkloadName: "b", Container: "c", Image: "nginx:1.27", Digest: "sha256:b"},
+	}, &attribution{})
+
+	images := runningImages(containers, nil, nil)
+	require.Len(t, images, 1)
+	require.NoError(t, attachRunningScans(images, idx, false))
+	assert.Empty(t, images[0].DigestScans, "left out of the image list")
+
+	images = runningImages(containers, nil, nil)
+	require.NoError(t, attachRunningScans(images, idx, true))
+	require.Len(t, images[0].DigestScans, 2)
+	assert.Equal(t, "sha256:a", images[0].DigestScans[0].Digest)
+	assert.Empty(t, images[0].DigestScans[0].Counts)
+	assert.Equal(t, "sha256:b", images[0].DigestScans[1].Digest)
+	assert.Equal(t, scan.Counts{scan.SeverityHigh: 1}, images[0].DigestScans[1].Counts)
 }

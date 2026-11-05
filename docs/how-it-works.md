@@ -77,6 +77,32 @@ updating it to the newest version would fix and introduce.
 
 Set `scan.disabled: true` to turn scanning off.
 
+## Image history
+
+Separately from the sync loop, the daemon watches each cluster's pods live and records every
+container it sees: the image and digest, the pod, node and workload, and when it started and ended.
+Init containers and `kubectl debug` ephemeral containers are included, and so are pods that only
+live for seconds, or that never start. History is kept indefinitely, in the same SQLite database,
+and follows the same `includeNamespaces` and `excludeNamespaces` as the inventory.
+
+- **Entries:** one per container and digest in each pod. A restart with the same digest stays the
+  same entry; a different digest in the same pod, such as a mutable tag re-pulled, starts a new one.
+- **Times** come from Kubernetes where it reports them, so pods already running when the daemon
+  starts keep their real start time. The time the daemon first saw each container is kept too.
+- **Coverage:** the daemon records when it was watching each cluster. A daemon restart, a failed
+  watch or a failed write ends a stretch of coverage, and the UI lists the gaps.
+
+What it can't tell you:
+
+- A pod that came and went during a gap leaves no trace, so absence during a gap proves nothing.
+  One that outlived the gap is recorded, and if it ended during one it's marked **not observed**.
+- If a watch expires or drops mid-stream, Kubernetes clients re-list without reporting an error.
+  That's usually over in seconds, but a pod that appeared and vanished in that moment isn't
+  recorded, and shows as a gap only if the re-list also found another pod missing.
+- History starts when the daemon first runs with this feature. It's a record for investigating,
+  not tamper-proof evidence: anyone who can reach the daemon's volume can change it.
+- Containers with no registry digest (a locally built image, say) are recorded without one.
+
 ## Limits
 
 - Only `linux/amd64` images are scanned, and the daemon image is built only for `linux/amd64`.

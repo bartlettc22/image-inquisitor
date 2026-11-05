@@ -35,25 +35,25 @@ func TestParseImage(t *testing.T) {
 
 func TestPullRequestViewAndRunningImages(t *testing.T) {
 	containers := parseContainers([]workloads.Container{
-		{Cluster: "bernes", Namespace: "romm", WorkloadKind: "Deployment", WorkloadName: "romm", Pod: "romm-1", Container: "romm", Image: "rommapp/romm:3.9.0", Digest: "sha256:aaa"},
-		{Cluster: "bernes", Namespace: "romm", WorkloadKind: "Deployment", WorkloadName: "romm", Pod: "romm-2", Container: "romm", Image: "rommapp/romm:3.9.0", Digest: "sha256:aaa"},
-		{Cluster: "bernes", Namespace: "romm", WorkloadKind: "StatefulSet", WorkloadName: "mariadb", Pod: "mariadb-0", Container: "mariadb", Image: "docker.io/library/mariadb:11.6"},
-		{Cluster: "bernes", Namespace: "tools", WorkloadKind: "Deployment", WorkloadName: "echo", Pod: "echo-1", Container: "echo", Image: "mendhak/http-https-echo:39"},
+		{Cluster: "lab", Namespace: "app", WorkloadKind: "Deployment", WorkloadName: "app", Pod: "app-1", Container: "app", Image: "org/app:3.9.0", Digest: "sha256:aaa"},
+		{Cluster: "lab", Namespace: "app", WorkloadKind: "Deployment", WorkloadName: "app", Pod: "app-2", Container: "app", Image: "org/app:3.9.0", Digest: "sha256:aaa"},
+		{Cluster: "lab", Namespace: "app", WorkloadKind: "StatefulSet", WorkloadName: "mariadb", Pod: "mariadb-0", Container: "mariadb", Image: "docker.io/library/mariadb:11.6"},
+		{Cluster: "lab", Namespace: "tools", WorkloadKind: "Deployment", WorkloadName: "echo", Pod: "echo-1", Container: "echo", Image: "mendhak/http-https-echo:39"},
 	}, newAttribution(nil, nil, nil))
 
-	romm := &store.PullRequest{Repo: "org/deploy", Number: 95, Title: "Update romm", Changes: []prdiff.Change{
-		{Kind: prdiff.KindImage, Name: "rommapp/romm", From: "rommapp/romm:3.9.0", To: "rommapp/romm:5.4.0"},
+	app := &store.PullRequest{Repo: "org/deploy", Number: 95, Title: "Update app", Changes: []prdiff.Change{
+		{Kind: prdiff.KindImage, Name: "org/app", From: "org/app:3.9.0", To: "org/app:5.4.0"},
 		{Kind: prdiff.KindHelmChart, Name: "chart", From: "1.0.0", To: "2.0.0"},
 	}}
 	mariadb := &store.PullRequest{Repo: "org/deploy", Number: 93, Title: "Update mariadb", Changes: []prdiff.Change{
 		{Kind: prdiff.KindImage, Name: "mariadb", From: "mariadb:11.7", To: "mariadb:12.2"},
 	}}
 
-	view := pullRequestView(romm, containers, true)
+	view := pullRequestView(app, containers, true)
 	require.Len(t, view.Changes, 2)
 	assert.Equal(t, []Workload{{
-		Cluster: "bernes", Namespace: "romm", Kind: "Deployment", Name: "romm",
-		Containers: []string{"romm"}, Digests: []string{"sha256:aaa"},
+		Cluster: "lab", Namespace: "app", Kind: "Deployment", Name: "app",
+		Containers: []string{"app"}, Digests: []string{"sha256:aaa"},
 	}}, view.Changes[0].Running)
 	assert.Nil(t, view.Changes[1].Running, "chart changes are unknown until rendered")
 
@@ -61,7 +61,7 @@ func TestPullRequestViewAndRunningImages(t *testing.T) {
 	assert.Equal(t, []Workload{}, pullRequestView(mariadb, containers, true).Changes[0].Running)
 	assert.Nil(t, pullRequestView(mariadb, containers, false).Changes[0].Running, "no inventory")
 
-	images := runningImages(containers, []*store.PullRequest{romm, mariadb}, nil)
+	images := runningImages(containers, []*store.PullRequest{app, mariadb}, nil)
 	require.Len(t, images, 3)
 
 	assert.Equal(t, "index.docker.io/library/mariadb", images[0].Repository)
@@ -70,7 +70,7 @@ func TestPullRequestViewAndRunningImages(t *testing.T) {
 	assert.Equal(t, "index.docker.io/mendhak/http-https-echo", images[1].Repository)
 	assert.Empty(t, images[1].CoveredBy)
 
-	assert.Equal(t, "index.docker.io/rommapp/romm", images[2].Repository)
+	assert.Equal(t, "index.docker.io/org/app", images[2].Repository)
 	assert.Equal(t, []string{"sha256:aaa"}, images[2].Digests)
 	require.Len(t, images[2].CoveredBy, 1)
 	assert.True(t, images[2].CoveredBy[0].MatchesRunning)
@@ -78,7 +78,7 @@ func TestPullRequestViewAndRunningImages(t *testing.T) {
 
 func TestChartChanges(t *testing.T) {
 	apps := []argocd.Application{{
-		Cluster: "bernes", Name: "certs", DestNamespace: "certs",
+		Cluster: "lab", Name: "certs", DestNamespace: "certs",
 		Sources: []argocd.Source{
 			{RepoURL: "https://charts.example.com", Chart: "certs", TargetRevision: "1.0.0"},
 			{RepoURL: "https://github.com/org/charts.git", Path: "charts/common", TargetRevision: "HEAD"},
@@ -87,23 +87,23 @@ func TestChartChanges(t *testing.T) {
 		SourceTypes: []string{"Helm", "Helm"},
 	}}
 	renders := []store.Render{
-		{Cluster: "bernes", App: "certs", Source: 0, Revision: "1.0.0", Images: []render.Image{
+		{Cluster: "lab", App: "certs", Source: 0, Revision: "1.0.0", Images: []render.Image{
 			{Kind: "Deployment", Name: "certs-controller", Namespace: "certs", Container: "controller", Image: "example.com/certs/controller:1.0.0"},
 			{Kind: "Deployment", Name: "certs-webhook", Namespace: "certs", Container: "webhook", Image: "example.com/certs/webhook:1.0.0"},
 		}},
-		{Cluster: "bernes", App: "certs", Source: 1, Revision: "abc123", Images: []render.Image{
+		{Cluster: "lab", App: "certs", Source: 1, Revision: "abc123", Images: []render.Image{
 			{Kind: "CronJob", Name: "backup", Namespace: "certs", Container: "backup", Image: "busybox:1.36"},
 		}},
 	}
 	containers := parseContainers([]workloads.Container{
-		{Cluster: "bernes", Namespace: "certs", WorkloadKind: "Deployment", WorkloadName: "certs-controller", Container: "controller", Image: "example.com/certs/controller:1.0.0", ArgoApp: "certs"},
-		{Cluster: "bernes", Namespace: "certs", WorkloadKind: "Deployment", WorkloadName: "certs-webhook", Container: "webhook", Image: "example.com/certs/webhook:1.0.0", ArgoApp: "certs"},
-		{Cluster: "bernes", Namespace: "certs", WorkloadKind: "CronJob", WorkloadName: "backup", Container: "backup", Image: "busybox:1.36", ArgoApp: "certs"},
-		{Cluster: "bernes", Namespace: "certs", WorkloadKind: "Deployment", WorkloadName: "manual", Container: "manual", Image: "nginx:1.27", ArgoApp: "certs"},
+		{Cluster: "lab", Namespace: "certs", WorkloadKind: "Deployment", WorkloadName: "certs-controller", Container: "controller", Image: "example.com/certs/controller:1.0.0", ArgoApp: "certs"},
+		{Cluster: "lab", Namespace: "certs", WorkloadKind: "Deployment", WorkloadName: "certs-webhook", Container: "webhook", Image: "example.com/certs/webhook:1.0.0", ArgoApp: "certs"},
+		{Cluster: "lab", Namespace: "certs", WorkloadKind: "CronJob", WorkloadName: "backup", Container: "backup", Image: "busybox:1.36", ArgoApp: "certs"},
+		{Cluster: "lab", Namespace: "certs", WorkloadKind: "Deployment", WorkloadName: "manual", Container: "manual", Image: "nginx:1.27", ArgoApp: "certs"},
 	}, newAttribution(apps, renders, nil))
 
 	require.NotNil(t, containers[0].source)
-	assert.Equal(t, Source{Cluster: "bernes", App: "certs", Index: 0, Kind: "chart", Chart: "certs", RepoURL: "https://charts.example.com", Version: "1.0.0"}, *containers[0].source)
+	assert.Equal(t, Source{Cluster: "lab", App: "certs", Index: 0, Kind: "chart", Chart: "certs", RepoURL: "https://charts.example.com", Version: "1.0.0"}, *containers[0].source)
 	require.NotNil(t, containers[2].source)
 	assert.Equal(t, "common", containers[2].source.Chart)
 	assert.Nil(t, containers[3].source, "not in any render")
@@ -112,7 +112,7 @@ func TestChartChanges(t *testing.T) {
 		Repo: "org/deploy", Number: 7, Title: "Update certs",
 		Changes: []prdiff.Change{{Kind: prdiff.KindHelmChart, Name: "certs", RepoURL: "https://charts.example.com", From: "1.0.0", To: "1.1.0"}},
 		Stages:  []store.Stage{{Name: renderStage, Status: store.StageStatusDone}},
-		ChartRenders: []store.ChartRender{{Change: 0, Cluster: "bernes", App: "certs", Source: 0, Images: []render.ImageDiff{
+		ChartRenders: []store.ChartRender{{Change: 0, Cluster: "lab", App: "certs", Source: 0, Images: []render.ImageDiff{
 			{Kind: "Deployment", Name: "certs-controller", Namespace: "certs", Container: "controller", From: "example.com/certs/controller:1.0.0", To: "example.com/certs/controller:1.1.0"},
 		}}},
 	}
@@ -144,7 +144,7 @@ func TestChartChanges(t *testing.T) {
 
 func TestVersionStatus(t *testing.T) {
 	apps := []argocd.Application{{
-		Cluster: "bernes", Name: "web", DestNamespace: "web",
+		Cluster: "lab", Name: "web", DestNamespace: "web",
 		Sources: []argocd.Source{
 			{RepoURL: "https://charts.example.com", Chart: "web", TargetRevision: "1.0.0"},
 			{RepoURL: "https://github.com/org/charts.git", Path: "charts/common"},
@@ -153,10 +153,10 @@ func TestVersionStatus(t *testing.T) {
 		SourceTypes: []string{"Helm", "Helm"},
 	}}
 	renders := []store.Render{
-		{Cluster: "bernes", App: "web", Source: 0, Revision: "1.0.0", Images: []render.Image{
+		{Cluster: "lab", App: "web", Source: 0, Revision: "1.0.0", Images: []render.Image{
 			{Kind: "Deployment", Name: "web", Namespace: "web", Container: "web", Image: "example.com/web:1.0.0"},
 		}},
-		{Cluster: "bernes", App: "web", Source: 1, Revision: "abc123", Images: []render.Image{
+		{Cluster: "lab", App: "web", Source: 1, Revision: "abc123", Images: []render.Image{
 			{Kind: "Deployment", Name: "worker", Namespace: "web", Container: "worker", Image: "example.com/worker:2.0.0"},
 		}},
 	}
@@ -169,11 +169,11 @@ func TestVersionStatus(t *testing.T) {
 		{Kind: store.VersionKindChart, Repository: "https://charts.example.com/web", Current: "1.0.0", Latest: "1.3.0"},
 	})
 	containers := parseContainers([]workloads.Container{
-		{Cluster: "bernes", Namespace: "web", WorkloadKind: "Deployment", WorkloadName: "web", Container: "web", Image: "example.com/web:1.0.0", ArgoApp: "web"},
-		{Cluster: "bernes", Namespace: "web", WorkloadKind: "Deployment", WorkloadName: "worker", Container: "worker", Image: "example.com/worker:2.0.0", ArgoApp: "web"},
-		{Cluster: "bernes", Namespace: "api", WorkloadKind: "Deployment", WorkloadName: "api", Container: "api", Image: "example.com/api:3.0.0"},
-		{Cluster: "bernes", Namespace: "ops", WorkloadKind: "CronJob", WorkloadName: "cron", Container: "cron", Image: "example.com/cron:1.0.0"},
-		{Cluster: "bernes", Namespace: "edge", WorkloadKind: "Deployment", WorkloadName: "edge", Container: "edge", Image: "example.com/edge:latest"},
+		{Cluster: "lab", Namespace: "web", WorkloadKind: "Deployment", WorkloadName: "web", Container: "web", Image: "example.com/web:1.0.0", ArgoApp: "web"},
+		{Cluster: "lab", Namespace: "web", WorkloadKind: "Deployment", WorkloadName: "worker", Container: "worker", Image: "example.com/worker:2.0.0", ArgoApp: "web"},
+		{Cluster: "lab", Namespace: "api", WorkloadKind: "Deployment", WorkloadName: "api", Container: "api", Image: "example.com/api:3.0.0"},
+		{Cluster: "lab", Namespace: "ops", WorkloadKind: "CronJob", WorkloadName: "cron", Container: "cron", Image: "example.com/cron:1.0.0"},
+		{Cluster: "lab", Namespace: "edge", WorkloadKind: "Deployment", WorkloadName: "edge", Container: "edge", Image: "example.com/edge:latest"},
 	}, newAttribution(apps, renders, versions))
 	assert.Equal(t, "1.3.0", containers[0].source.Latest)
 
@@ -216,4 +216,52 @@ func TestAttachSoaks(t *testing.T) {
 	require.NotNil(t, images[0].Soak)
 	assert.Equal(t, daemon.SoakLaneFast, images[0].Soak.Lane)
 	assert.Nil(t, images[1].Soak, "already the newest")
+}
+
+func TestImageDetail(t *testing.T) {
+	containers := parseContainers([]workloads.Container{
+		{Cluster: "lab", Namespace: "db", WorkloadKind: "StatefulSet", WorkloadName: "mariadb", Container: "mariadb", Image: "mariadb:11.6"},
+	}, newAttribution(nil, nil, nil))
+
+	direct := &store.PullRequest{Repo: "org/deploy", Number: 1, Title: "Update mariadb", Changes: []prdiff.Change{
+		{Kind: prdiff.KindImage, Name: "mariadb", From: "mariadb:11.6", To: "mariadb:12.2"},
+		{Kind: prdiff.KindImage, Name: "redis", From: "redis:7.0", To: "redis:7.2"},
+	}}
+	chart := &store.PullRequest{
+		Repo: "org/deploy", Number: 2, Title: "Update db chart",
+		Changes: []prdiff.Change{{Kind: prdiff.KindHelmChart, Name: "db", From: "1.0.0", To: "2.0.0"}},
+		ChartRenders: []store.ChartRender{{Change: 0, Images: []render.ImageDiff{
+			{From: "mariadb:11.5", To: "mariadb:11.7"},
+			{To: "mariadb:11.8"},
+			{From: "nginx:1.26"},
+		}}},
+	}
+	prs := []*store.PullRequest{direct, chart}
+	const repository = "index.docker.io/library/mariadb"
+	via := "db 1.0.0 → 2.0.0"
+
+	detail := imageDetail(repository, runningImages(containers, prs, nil), containers, prs)
+	assert.Equal(t, repository, detail.Repository)
+	assert.Equal(t, []Coverage{
+		{Repo: "org/deploy", Number: 1, Title: "Update mariadb", From: "mariadb:11.6", To: "mariadb:12.2", MatchesRunning: true},
+		{Repo: "org/deploy", Number: 2, Title: "Update db chart", From: "mariadb:11.5", To: "mariadb:11.7", Via: via},
+		{Repo: "org/deploy", Number: 2, Title: "Update db chart", To: "mariadb:11.8", Via: via},
+	}, detail.PullRequests, "a PR adding the image counts, and other images don't")
+
+	require.Len(t, detail.Tags, 1)
+	assert.Len(t, detail.Tags[0].CoveredBy, 2, "a container a chart adds doesn't update a running image")
+
+	// Not running, only changed by a PR
+	redis := imageDetail("index.docker.io/library/redis", []RunningImage{}, nil, prs)
+	assert.Empty(t, redis.Tags)
+	assert.Equal(t, []Coverage{{Repo: "org/deploy", Number: 1, Title: "Update mariadb", From: "redis:7.0", To: "redis:7.2"}}, redis.PullRequests)
+
+	// A PR removing the image is found by its From side
+	nginx := imageDetail("index.docker.io/library/nginx", []RunningImage{}, nil, prs)
+	assert.Equal(t, []Coverage{{Repo: "org/deploy", Number: 2, Title: "Update db chart", From: "nginx:1.26", Via: via}}, nginx.PullRequests)
+
+	// Neither running nor in an open PR, e.g. linked from a merged PR
+	gone := imageDetail("index.docker.io/library/gone", []RunningImage{}, nil, prs)
+	assert.Equal(t, []RunningImage{}, gone.Tags)
+	assert.Equal(t, []Coverage{}, gone.PullRequests)
 }

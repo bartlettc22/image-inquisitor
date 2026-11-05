@@ -23,7 +23,6 @@
 }
 
 .trends h3 {
-  font-family: var(--serif);
   font-size: 14px;
   margin: 0;
 }
@@ -91,7 +90,6 @@
 }
 
 .multiple-value {
-  font-family: var(--serif);
   font-size: 22px;
   font-weight: 650;
 }

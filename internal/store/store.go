@@ -217,6 +217,41 @@ CREATE TABLE IF NOT EXISTS findings (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS findings_open ON findings (cluster, namespace, workload_kind, workload_name, container, vuln_id, package) WHERE closed_at = 0;
+
+CREATE TABLE IF NOT EXISTS image_history (
+	id             INTEGER PRIMARY KEY AUTOINCREMENT,
+	cluster        TEXT    NOT NULL,
+	namespace      TEXT    NOT NULL,
+	workload_kind  TEXT    NOT NULL,
+	workload_name  TEXT    NOT NULL,
+	pod            TEXT    NOT NULL,
+	pod_uid        TEXT    NOT NULL,
+	node           TEXT    NOT NULL,
+	container      TEXT    NOT NULL,
+	container_type TEXT    NOT NULL,
+	image          TEXT    NOT NULL,
+	repository     TEXT    NOT NULL,
+	digest         TEXT    NOT NULL,
+	argo_app       TEXT    NOT NULL,
+	ran            INTEGER NOT NULL,
+	started_at     INTEGER NOT NULL,
+	recorded_at    INTEGER NOT NULL,
+	ended_at       INTEGER NOT NULL,
+	end_reason     TEXT    NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS image_history_open ON image_history (cluster, pod_uid, container) WHERE ended_at = 0;
+CREATE INDEX IF NOT EXISTS image_history_pod ON image_history (cluster, pod_uid, container);
+CREATE INDEX IF NOT EXISTS image_history_repository ON image_history (repository);
+CREATE INDEX IF NOT EXISTS image_history_digest ON image_history (digest);
+CREATE INDEX IF NOT EXISTS image_history_started ON image_history (started_at);
+
+CREATE TABLE IF NOT EXISTS history_coverage (
+	id         INTEGER PRIMARY KEY AUTOINCREMENT,
+	cluster    TEXT    NOT NULL,
+	started_at INTEGER NOT NULL,
+	last_seen  INTEGER NOT NULL
+);
 `
 
 type Store struct {
