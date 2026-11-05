@@ -18,11 +18,11 @@ import (
 
 const renovateConfigYAML = `
 repos:
-- name: etalore/deploy
-- name: etalore/ghostline
+- name: example/deploy
+- name: example/webapp
 kubernetes:
   clusters:
-  - context: bernes
+  - context: lab
 renovate:
   namespace: renovate
   image: ghcr.io/renovatebot/renovate:44.181.6
@@ -53,7 +53,7 @@ func TestLoadRenovateConfig(t *testing.T) {
 	require.NoError(t, err)
 	r := c.Renovate
 	require.NotNil(t, r)
-	assert.Equal(t, "bernes", r.Cluster, "defaults to the only cluster")
+	assert.Equal(t, "lab", r.Cluster, "defaults to the only cluster")
 	assert.Equal(t, 6*time.Hour, r.RunEvery())
 	assert.Equal(t, time.Hour, r.timeout)
 	assert.Equal(t, "renovate-github", r.Env[0].ValueFrom.SecretKeyRef.Name)
@@ -66,7 +66,7 @@ func TestLoadRenovateConfig(t *testing.T) {
 		{"typo", "cacheClaim:", "cacheClam:", "unknown field"},
 		{"reserved env", "name: RENOVATE_TOKEN", "name: RENOVATE_AUTODISCOVER", "would override the repos"},
 		{"reserved config", "minimumReleaseAge: 14 days", "autodiscover: true", "config.autodiscover is set by the daemon"},
-		{"unknown cluster", "namespace: renovate", "namespace: renovate\n  cluster: lab", `cluster "lab" isn't one`},
+		{"unknown cluster", "namespace: renovate", "namespace: renovate\n  cluster: elsewhere", `cluster "elsewhere" isn't one`},
 		{"no image", "image: ghcr.io/renovatebot/renovate:44.181.6", "", "image is required"},
 		{"bad interval", "interval: 6h", "interval: daily", "invalid interval"},
 	}
@@ -83,7 +83,7 @@ func TestRenovateJob(t *testing.T) {
 	c, err := loadConfig(t, renovateConfigYAML)
 	require.NoError(t, err)
 
-	job, err := c.Renovate.job(7, []string{"etalore/deploy"}, nil)
+	job, err := c.Renovate.job(7, []string{"example/deploy"}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "renovate", job.Namespace)
 	assert.Equal(t, "7", job.Labels[renovateRunLabel])
@@ -106,7 +106,7 @@ func TestRenovateJob(t *testing.T) {
 	global := map[string]any{}
 	require.NoError(t, json.Unmarshal([]byte(ctr.Env[0].Value), &global))
 	assert.Equal(t, "github", global["platform"])
-	assert.Equal(t, []any{"etalore/deploy"}, global["repositories"])
+	assert.Equal(t, []any{"example/deploy"}, global["repositories"])
 	assert.Equal(t, false, global["autodiscover"])
 	assert.Equal(t, "14 days", global["minimumReleaseAge"])
 }
@@ -154,11 +154,11 @@ func TestRunRenovate(t *testing.T) {
 	jobs := &fakeJobs{}
 	d := &Daemon{config: c, store: s, repos: newRepoSet(c.Repos), renovateJobs: jobs, renovatePoll: time.Millisecond}
 
-	require.NoError(t, d.runRenovate(ctx, store.RenovateTriggerManual, []string{"etalore/deploy"}))
+	require.NoError(t, d.runRenovate(ctx, store.RenovateTriggerManual, []string{"example/deploy"}))
 	jobs.fail = "DeadlineExceeded"
-	require.NoError(t, d.runRenovate(ctx, store.RenovateTriggerSchedule, []string{"etalore/deploy", "etalore/ghostline"}))
+	require.NoError(t, d.runRenovate(ctx, store.RenovateTriggerSchedule, []string{"example/deploy", "example/webapp"}))
 	jobs.active = []string{"imginq-renovate-old"}
-	require.NoError(t, d.runRenovate(ctx, store.RenovateTriggerSchedule, []string{"etalore/deploy"}))
+	require.NoError(t, d.runRenovate(ctx, store.RenovateTriggerSchedule, []string{"example/deploy"}))
 
 	runs, err := s.ListRenovateRuns(ctx, 10)
 	require.NoError(t, err)
@@ -170,7 +170,7 @@ func TestRunRenovate(t *testing.T) {
 
 	assert.Equal(t, store.RenovateStatusFailed, runs[1].Status)
 	assert.Equal(t, "DeadlineExceeded", runs[1].Error)
-	assert.Equal(t, []string{"etalore/deploy", "etalore/ghostline"}, runs[1].Repos)
+	assert.Equal(t, []string{"example/deploy", "example/webapp"}, runs[1].Repos)
 
 	assert.Equal(t, store.RenovateStatusSucceeded, runs[2].Status)
 	assert.Equal(t, store.RenovateTriggerManual, runs[2].Trigger)
@@ -186,8 +186,8 @@ func TestRunRenovateRequests(t *testing.T) {
 	require.NoError(t, err)
 	d := &Daemon{config: c, repos: newRepoSet(c.Repos), renovateTrigger: make(chan RenovateRequest, 1)}
 
-	assert.ErrorIs(t, d.RunRenovate(RenovateRequest{Repo: "etalore/unknown"}), ErrUnknownRepo)
-	require.NoError(t, d.RunRenovate(RenovateRequest{Repo: "etalore/deploy"}))
+	assert.ErrorIs(t, d.RunRenovate(RenovateRequest{Repo: "example/unknown"}), ErrUnknownRepo)
+	require.NoError(t, d.RunRenovate(RenovateRequest{Repo: "example/deploy"}))
 	assert.ErrorIs(t, d.RunRenovate(RenovateRequest{}), ErrRenovateBusy, "one queued at a time")
 
 	d.config.Renovate = nil

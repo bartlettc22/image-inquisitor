@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getActivity, getPullRequest, runRenovate, getStatus, listApps, listPullRequests, listRunningImages, triggerSync } from './api';
+import { getActivity, getImage, getPullRequest, runRenovate, getStatus, listApps, listPullRequests, listRunningImages, triggerSync } from './api';
 import {
   bump,
   bytes,
   duration,
+  imageHref,
   imageName,
   imageTag,
   kindLabel,
@@ -19,19 +20,23 @@ import type {
   App as ArgoApp,
   ChangeView,
   ChartRenderView,
+  Coverage,
   PullRequest,
   PullRequestScan,
   RunningImage,
   SoakDecision,
   ScanDelta,
+  ScanSide,
   SeverityCounts,
   SourceView,
   Stage,
   Status,
   UpdateStatus,
   Version,
+  Vulnerability,
   Workload,
 } from './types';
+import { History, ImageHistory } from './History';
 import { Trends } from './Trends';
 
 const POLL_MS = 15_000;
@@ -77,11 +82,13 @@ function useHash() {
 
 const prRoute = /^#\/pr\/([^/]+\/[^/]+)\/(\d+)$/;
 const prHref = (pr: PullRequest) => `#/pr/${pr.repo}/${pr.number}`;
+const imageRoute = /^#\/image\/(.+)$/;
 
-const tabs: Record<string, 'prs' | 'images' | 'apps' | undefined> = {
+const tabs: Record<string, 'prs' | 'images' | 'apps' | 'history' | undefined> = {
   '#/prs': 'prs',
   '#/images': 'images',
   '#/apps': 'apps',
+  '#/history': 'history',
 };
 
 export default function App() {
@@ -89,35 +96,34 @@ export default function App() {
   // Often enough for the header to show the sync step and scan task as they change
   const status = usePoll(getStatus, [], 5_000);
   const match = prRoute.exec(route);
+  const imageMatch = imageRoute.exec(route);
   const tab = tabs[route] ?? 'dashboard';
   const hasClusters = (status.data?.clusters.length ?? 0) > 0;
 
   return (
     <div className="app">
-      <Header status={status.data} error={status.error} onSynced={status.reload} />
+      <Header
+        section={match ? 'prs' : imageMatch ? 'images' : tab}
+        status={status.data}
+        error={status.error}
+        onSynced={status.reload}
+      />
       <main>
-        {!match && (
-          <nav className="tabs">
-            <a className={tab === 'dashboard' ? 'active' : ''} href="#/">
-              Overview
-            </a>
-            <a className={tab === 'prs' ? 'active' : ''} href="#/prs">
-              Pull requests
-            </a>
-            <a className={tab === 'images' ? 'active' : ''} href="#/images">
-              Running images
-            </a>
-            <a className={tab === 'apps' ? 'active' : ''} href="#/apps">
-              Apps
-            </a>
-          </nav>
-        )}
         {match ? (
           <PullRequestDetail repo={match[1]} number={Number(match[2])} />
+        ) : imageMatch ? (
+          <ImagePage key={imageMatch[1]} repository={imageMatch[1]} />
         ) : tab === 'images' ? (
-          <RunningImages key={params.toString()} hasClusters={hasClusters} initialStatus={params.get('status')} />
+          <RunningImages
+            key={params.toString()}
+            hasClusters={hasClusters}
+            multiCluster={(status.data?.clusters.length ?? 0) > 1}
+            initialStatus={params.get('status')}
+          />
         ) : tab === 'apps' ? (
           <Apps key={params.toString()} hasClusters={hasClusters} initialProblemsOnly={params.has('attention')} />
+        ) : tab === 'history' ? (
+          <History key={params.toString()} initialQuery={params.get('q')} />
         ) : tab === 'prs' ? (
           <PullRequestList />
         ) : (
@@ -164,17 +170,45 @@ function ThemeToggle() {
   );
 }
 
-function Header({ status, error, onSynced }: { status: Status | null; error: string | null; onSynced: () => void }) {
+// The top-level sections in the header
+const sections = [
+  { id: 'dashboard', href: '#/', label: 'Dashboard' },
+  { id: 'images', href: '#/images', label: 'Running images' },
+  { id: 'prs', href: '#/prs', label: 'Pull requests' },
+  { id: 'apps', href: '#/apps', label: 'Apps' },
+  { id: 'history', href: '#/history', label: 'History' },
+];
+
+function Header({
+  section,
+  status,
+  error,
+  onSynced,
+}: {
+  section: string;
+  status: Status | null;
+  error: string | null;
+  onSynced: () => void;
+}) {
   return (
     <header>
-      <a className="brand" href="#/">
-        <img className="logo" src="/logo.png" alt="" />
-        Image Inquisitor
-      </a>
-      <span className="spacer" />
-      {error && <span className="badge error" title={error}>API unreachable</span>}
-      {status && <StatusButton status={status} onSynced={onSynced} />}
-      {status && <ConfigButton status={status} />}
+      <div className="header-inner">
+        <a className="brand" href="#/">
+          <img className="logo" src="/logo.png" alt="" />
+          Image Inquisitor
+        </a>
+        <nav className="tabs">
+          {sections.map((s) => (
+            <a key={s.id} className={section === s.id ? 'active' : ''} href={s.href}>
+              {s.label}
+            </a>
+          ))}
+        </nav>
+        <span className="spacer" />
+        {error && <span className="badge error" title={error}>API unreachable</span>}
+        {status && <StatusButton status={status} onSynced={onSynced} />}
+        {status && <ConfigButton status={status} />}
+      </div>
     </header>
   );
 }
@@ -210,7 +244,10 @@ function StatusButton({ status, onSynced }: { status: Status; onSynced: () => vo
         ref={dialog}
         className="config status"
         onClose={() => setOpen(false)}
-        onClick={(e) => e.target === dialog.current && dialog.current.close()}
+        onClick={(e) => {
+          // A backdrop click, or a link to a page behind the dialog
+          if (e.target === dialog.current || (e.target as Element).closest('a[href^="#/"]')) dialog.current?.close();
+        }}
       >
         <div className="config-body">
           <div className="config-head">
@@ -281,7 +318,9 @@ function StatusDetail({ onSynced }: { onSynced: () => void }) {
             {r.scan.task ? (
               <>
                 <span className="badge kind image">running</span> {r.scan.task}{' '}
-                <code title={r.scan.image}>{shortRepository(r.scan.image ?? '')}</code>{' '}
+                <a href={imageHref(r.scan.image ?? '')}>
+                  <code title={r.scan.image}>{shortRepository(r.scan.image ?? '')}</code>
+                </a>{' '}
                 <span className="muted">for {elapsed(r.scan.taskStartedAt)}</span>
               </>
             ) : (
@@ -359,7 +398,13 @@ function StatusDetail({ onSynced }: { onSynced: () => void }) {
                   <ul className="failures">
                     {r.tagLists.failures.map((f) => (
                       <li key={`${f.kind}/${f.repository}`}>
-                        <code>{shortRepository(f.repository)}</code>
+                        {f.kind === 'image' ? (
+                          <a href={imageHref(f.repository)}>
+                            <code>{shortRepository(f.repository)}</code>
+                          </a>
+                        ) : (
+                          <code>{shortRepository(f.repository)}</code>
+                        )}
                         <span className="error-text" title={f.error}>
                           {f.error}
                         </span>
@@ -637,7 +682,7 @@ function ConfigButton({ status }: { status: Status }) {
             <dt>Sync interval</dt>
             <dd>{config.syncInterval}</dd>
             <dt>Vulnerability scanning</dt>
-            <dd>{config.scanning ? 'on (Trivy)' : 'off'}</dd>
+            <dd>{config.scanning ? `on (Trivy${config.trivyVersion ? ` ${config.trivyVersion}` : ''})` : 'off'}</dd>
             <dt>GitHub API</dt>
             <dd>
               {config.githubAPIURL || 'api.github.com'}
@@ -695,8 +740,7 @@ const hasCriticalOrHigh = (counts?: SeverityCounts) => (counts?.CRITICAL ?? 0) +
 function Dashboard({ hasClusters }: { hasClusters: boolean }) {
   const images = usePoll(listRunningImages, []);
   const prs = usePoll(() => listPullRequests('open'), []);
-  const apps = usePoll(listApps, []);
-  const error = images.error ?? prs.error ?? apps.error;
+  const error = images.error ?? prs.error;
 
   const imageStats = useMemo(() => {
     const list = images.data ?? [];
@@ -747,16 +791,6 @@ function Dashboard({ hasClusters }: { hasClusters: boolean }) {
       scanning: list.filter((pr) => pr.scan?.status === 'pending').length,
     };
   }, [prs.data]);
-
-  const appStats = useMemo(() => {
-    const list = apps.data ?? [];
-    return {
-      total: list.length,
-      outOfSync: list.filter((a) => a.syncStatus !== 'Synced').length,
-      unhealthy: list.filter((a) => a.health !== 'Healthy').length,
-      attention: list.filter(appNeedsAttention).length,
-    };
-  }, [apps.data]);
 
   const big = (loaded: unknown, n: number) => <div className="big">{loaded ? n : '…'}</div>;
 
@@ -851,33 +885,6 @@ function Dashboard({ hasClusters }: { hasClusters: boolean }) {
             ))}
           </ul>
         </section>
-
-        <section className="tile">
-          <h2>
-            <a href="#/apps">Argo CD apps</a>
-          </h2>
-          {hasClusters ? (
-            <>
-              {big(apps.data, appStats.total)}
-              <ul className="breakdown">
-                <li>
-                  <a href="#/apps?attention">Need attention</a>
-                  <span className={`n ${appStats.attention ? 'warn' : ''}`}>{appStats.attention}</span>
-                </li>
-                <li>
-                  <span>Out of sync</span>
-                  <span className={`n ${appStats.outOfSync ? 'warn' : ''}`}>{appStats.outOfSync}</span>
-                </li>
-                <li>
-                  <span>Not healthy</span>
-                  <span className={`n ${appStats.unhealthy ? 'warn' : ''}`}>{appStats.unhealthy}</span>
-                </li>
-              </ul>
-            </>
-          ) : (
-            <p className="message">No clusters configured</p>
-          )}
-        </section>
       </div>
 
       <div className="panels">
@@ -923,7 +930,9 @@ function Dashboard({ hasClusters }: { hasClusters: boolean }) {
                     {imageStats.behind.slice(0, TOP_N).map((img) => (
                       <tr key={`${img.repository}:${img.tag ?? img.digests.join(',')}`}>
                         <td>
-                          <div className="name">{shortRepository(img.repository)}</div>
+                          <div className="name">
+                            <a href={imageHref(img.repository)}>{shortRepository(img.repository)}</a>
+                          </div>
                           <div className="change">
                             <code>{img.tag}</code>
                             <LatestVersion version={img.version} />
@@ -1073,7 +1082,7 @@ function ChangeLine({ change }: { change: ChangeView }) {
     <div className="change">
       <span className={`badge kind ${change.kind}`}>{kindLabel(change.kind)}</span>
       <span className="name" title={change.repoURL ?? change.name}>
-        {change.name}
+        {change.kind === 'image' ? <a href={imageHref(change.name)}>{change.name}</a> : change.name}
       </span>
       <span className="versions">
         {from} → {to}
@@ -1246,6 +1255,52 @@ function RunningScan({ image }: { image: RunningImage }) {
   );
 }
 
+// VulnerabilityTable lists CVEs, with a first column when they're marked fixed or introduced
+function VulnerabilityTable({ rows }: { rows: { vuln: Vulnerability; kind?: 'fixed' | 'introduced' }[] }) {
+  const marked = rows.some((r) => r.kind);
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            {marked && <th></th>}
+            <th>Severity</th>
+            <th>Vulnerability</th>
+            <th>Package</th>
+            <th>Installed</th>
+            <th>Fixed in</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ vuln: v, kind }, i) => (
+            <tr key={i}>
+              {marked && <td>{kind && <span className={`badge cve ${kind}`}>{kind}</span>}</td>}
+              <td>
+                <span className={`badge severity ${v.severity.toLowerCase()}`}>{v.severity.toLowerCase()}</span>
+              </td>
+              <td>
+                {v.url ? (
+                  <a href={v.url} target="_blank" rel="noreferrer">
+                    {v.id}
+                  </a>
+                ) : (
+                  v.id
+                )}
+                {v.title && <div className="sub">{v.title}</div>}
+              </td>
+              <td>{v.package}</td>
+              <td>
+                <code>{v.installed}</code>
+              </td>
+              <td>{v.fixed ? <code>{v.fixed}</code> : <span className="muted">no fix</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // Vulnerabilities lists the CVEs an image change fixes and introduces
 function Vulnerabilities({ label, scan }: { label: string; scan: ScanDelta }) {
   const fixed = scan.fixedVulnerabilities ?? [];
@@ -1258,49 +1313,9 @@ function Vulnerabilities({ label, scan }: { label: string; scan: ScanDelta }) {
       <summary>
         {label}: <ScanBadges scan={scan} />
       </summary>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th></th>
-              <th>Severity</th>
-              <th>Vulnerability</th>
-              <th>Package</th>
-              <th>Installed</th>
-              <th>Fixed in</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...fixed.map((v) => ['fixed', v] as const), ...introduced.map((v) => ['introduced', v] as const)].map(
-              ([kind, v]) => (
-                <tr key={`${kind}/${v.id}/${v.package}`}>
-                  <td>
-                    <span className={`badge cve ${kind}`}>{kind}</span>
-                  </td>
-                  <td>
-                    <span className={`badge severity ${v.severity.toLowerCase()}`}>{v.severity.toLowerCase()}</span>
-                  </td>
-                  <td>
-                    {v.url ? (
-                      <a href={v.url} target="_blank" rel="noreferrer">
-                        {v.id}
-                      </a>
-                    ) : (
-                      v.id
-                    )}
-                    {v.title && <div className="sub">{v.title}</div>}
-                  </td>
-                  <td>{v.package}</td>
-                  <td>
-                    <code>{v.installed}</code>
-                  </td>
-                  <td>{v.fixed ? <code>{v.fixed}</code> : <span className="muted">no fix</span>}</td>
-                </tr>
-              ),
-            )}
-          </tbody>
-        </table>
-      </div>
+      <VulnerabilityTable
+        rows={[...fixed.map((vuln) => ({ vuln, kind: 'fixed' as const })), ...introduced.map((vuln) => ({ vuln, kind: 'introduced' as const }))]}
+      />
     </details>
   );
 }
@@ -1345,6 +1360,35 @@ function RunningBadge({ running }: { running: Workload[] | null }) {
     <span className="badge running" title={running.map(workloadLabel).join('\n')}>
       running in {running.length}
     </span>
+  );
+}
+
+// Beyond this many clusters a running image shows a count instead of their names
+const maxClusterNames = 3;
+
+// WorkloadIcon is a cube standing in for the word "workload"
+function WorkloadIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 1.5 14 5v6l-6 3.5L2 11V5zM2 5l6 3.5L14 5M8 8.5v6" />
+    </svg>
+  );
+}
+
+// WorkloadCounts sums up where an image runs, with its clusters when several are tracked; its page lists the workloads
+function WorkloadCounts({ workloads, multiCluster }: { workloads: Workload[]; multiCluster: boolean }) {
+  const clusters = [...new Set(workloads.map((w) => w.cluster))].sort();
+  const label = `${workloads.length} ${workloads.length === 1 ? 'workload' : 'workloads'}`;
+  return (
+    <div title={[label, ...workloads.map(workloadLabel)].join('\n')}>
+      <span className="workload-count" role="img" aria-label={label}>
+        <WorkloadIcon />
+        {workloads.length}
+      </span>
+      {multiCluster && (
+        <div className="sub">{clusters.length > maxClusterNames ? `${clusters.length} clusters` : clusters.join(', ')}</div>
+      )}
+    </div>
   );
 }
 
@@ -1413,7 +1457,15 @@ type StatusFilter = 'all' | UpdateStatus;
 
 const isStatus = (s: string | null): s is UpdateStatus => s != null && s in statusLabels;
 
-function RunningImages({ hasClusters, initialStatus }: { hasClusters: boolean; initialStatus: string | null }) {
+function RunningImages({
+  hasClusters,
+  multiCluster,
+  initialStatus,
+}: {
+  hasClusters: boolean;
+  multiCluster: boolean;
+  initialStatus: string | null;
+}) {
   const [status, setStatus] = useState<StatusFilter>(isStatus(initialStatus) ? initialStatus : 'all');
   const [query, setQuery] = useState('');
   const { data, error } = usePoll(listRunningImages, []);
@@ -1483,7 +1535,9 @@ function RunningImages({ hasClusters, initialStatus }: { hasClusters: boolean; i
               {filtered.map((img) => (
                 <tr key={`${img.repository}:${img.tag ?? img.digests.join(',')}`}>
                   <td>
-                    <div className="name">{shortRepository(img.repository)}</div>
+                    <div className="name">
+                      <a href={imageHref(img.repository)}>{shortRepository(img.repository)}</a>
+                    </div>
                     <div className="sub">
                       <code>{img.tag ?? img.digests[0]?.slice(0, 19)}</code>
                     </div>
@@ -1498,12 +1552,19 @@ function RunningImages({ hasClusters, initialStatus }: { hasClusters: boolean; i
                         <SoakBadge soak={img.soak} />
                       </div>
                     )}
+                    {deploymentGroups(img).length > 1 && (
+                      <div className="sub">
+                        <span className="badge" title={deployedWaysHelp}>
+                          deployed {deploymentGroups(img).length} ways
+                        </span>
+                      </div>
+                    )}
                   </td>
                   <td>
                     <RunningScan image={img} />
                   </td>
                   <td>
-                    <WorkloadList workloads={img.workloads} />
+                    <WorkloadCounts workloads={img.workloads} multiCluster={multiCluster} />
                   </td>
                   <td>
                     {img.coveredBy.length === 0 ? (
@@ -1530,6 +1591,563 @@ function RunningImages({ hasClusters, initialStatus }: { hasClusters: boolean; i
         </div>
       )}
     </>
+  );
+}
+
+// bySeverity orders CVEs most severe first, those with a fix first within a severity
+const bySeverity = (a: Vulnerability, b: Vulnerability) =>
+  severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity) ||
+  Number(!a.fixed) - Number(!b.fixed) ||
+  a.id.localeCompare(b.id);
+
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+
+const severityList = (counts: SeverityCounts) =>
+  severityOrder
+    .filter((s) => counts[s])
+    .map((s) => `${counts[s]} ${s.toLowerCase()}`)
+    .join(', ');
+
+// CveComparison shows an image's CVEs now and, when there's a newer version, after updating to it
+function CveComparison({ image }: { image: RunningImage }) {
+  const now = image.scan?.counts ?? {};
+  const update = image.update;
+  const after = update?.status === 'done' ? update.to?.counts ?? {} : null;
+  // Low and unknown are only worth a column when there are some
+  const columns = severityOrder.filter(
+    (s) => s === 'CRITICAL' || s === 'HIGH' || s === 'MEDIUM' || now[s] || after?.[s],
+  );
+  const fixed = update && severityList(update.fixed);
+  const introduced = update && severityList(update.introduced);
+  const unavailable = { pending: 'scanning…', error: 'scan failed', skipped: 'not scanned' };
+
+  return (
+    <>
+      <div className="table-wrap">
+        <table className="cve-table">
+          <thead>
+            <tr>
+              <th></th>
+              {columns.map((s) => (
+                <th key={s}>
+                  <span className={`severity-label ${s.toLowerCase()}`}>{s.toLowerCase()}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Running {image.tag}</td>
+              {columns.map((s) => (
+                <td key={s}>{now[s] ?? 0}</td>
+              ))}
+            </tr>
+            {update && after && (
+              <>
+                <tr>
+                  <td>After update</td>
+                  {columns.map((s) => (
+                    <td key={s}>{after[s] ?? 0}</td>
+                  ))}
+                </tr>
+                <tr>
+                  <td>Change</td>
+                  {columns.map((s) => {
+                    const change = (after[s] ?? 0) - (now[s] ?? 0);
+                    return (
+                      <td key={s} className={change < 0 ? 'better' : change > 0 ? 'worse' : 'muted'}>
+                        {signed(change)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </>
+            )}
+            {update && !after && (
+              <tr>
+                <td>After update</td>
+                <td className="muted" colSpan={columns.length} title={update.to?.error}>
+                  {unavailable[update.status as keyof typeof unavailable]}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {after && (fixed || introduced) && (
+        <p className="sub">
+          {fixed && <>Fixes {fixed}</>}
+          {fixed && introduced && ' · '}
+          {introduced && <span className="worse">introduces {introduced}</span>}
+        </p>
+      )}
+    </>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  // Browsers only offer the clipboard on HTTPS and localhost
+  if (!navigator.clipboard) return null;
+  return (
+    <button
+      className="copy"
+      title="Copy digest"
+      aria-label="Copy digest"
+      onClick={() =>
+        navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        })
+      }
+    >
+      {copied ? '✓' : '⧉'}
+    </button>
+  );
+}
+
+// statusHelp explains an image's update status in terms of this image
+function statusHelp(image: RunningImage): string {
+  const latest = image.version?.latest;
+  switch (image.status) {
+    case 'behind':
+      return `Version ${latest} is available and no open PR updates this image, so nothing will update it until one does. This usually means Renovate doesn't cover it.`;
+    case 'pending': {
+      const pr = image.coveredBy.find((c) => c.matchesRunning);
+      return `Open PR #${pr?.number} updates this version${pr?.to ? ` to ${imageTag(pr.to)}` : ''}. Merging it is the next step.`;
+    }
+    case 'pinned': {
+      const charts = [...new Set(image.workloads.flatMap((w) => (w.source ? [w.source.chart] : [])))];
+      const by = charts.length > 0 ? `the ${charts.join(', ')} chart` : 'a chart';
+      return `Version ${latest} is available, but this tag is set by ${by} from a Helm or OCI repository. It only changes when the chart is updated, so look for a newer chart rather than a newer image.`;
+    }
+    case 'current':
+      return "This is the newest version of the same variant, so there's nothing to update.";
+    case 'unknown':
+      return image.version?.error
+        ? `The registry's tags couldn't be listed, so newer versions can't be found: ${image.version.error}`
+        : "This tag isn't a version number, so it can't be compared with newer versions.";
+  }
+}
+
+const bumpHelp: Record<string, string> = {
+  major: 'The first number of the version changes. Major versions can include breaking changes, so check the release notes before updating.',
+  minor: 'The middle number of the version changes. Minor versions usually add features and stay compatible.',
+  patch: 'The last number of the version changes. Patch versions are usually only bug and security fixes.',
+};
+
+const soakLaneHelp: Record<SoakDecision['lane'], string> = {
+  default: 'This update has the normal soak.',
+  major: 'This is a major update, so it has the longer major soak.',
+  fast: 'This update fixes more serious CVEs than it introduces, so it has a short soak.',
+  risky: 'This update introduces more serious CVEs than it fixes, so it has a longer soak.',
+};
+
+// soakHelp explains how long an update waits, and where it has got to
+function soakHelp(soak: SoakDecision): string {
+  const parts = ['Soak is how long a new version waits before Renovate may propose it, so broken releases get caught first.', soakLaneHelp[soak.lane]];
+  if (soak.scanPending) parts.push("Its CVEs aren't known yet, so it can't use the fast lane.");
+  if (soak.released) {
+    parts.push('It has finished soaking, so Renovate may propose it.');
+  } else if (soak.eligibleAt) {
+    parts.push(`Renovate may propose it ${timeUntil(soak.eligibleAt)}.`);
+  }
+  return parts.join(' ');
+}
+
+// SOAK_OVERDUE_MS is how long after a soak ends the lack of a PR stops looking like a wait for
+// Renovate's next run
+const SOAK_OVERDUE_MS = 2 * DAY_MS;
+
+// SoakState names where an update is while there's no PR, in the colours of the soak badges
+function SoakState({ soak }: { soak: SoakDecision }) {
+  if (soak.lane === 'fast') return <span className="badge running big-badge">Fastlane</span>;
+  if (soak.released) return <span className="badge big-badge">Soaked</span>;
+  if (soak.lane === 'risky') return <span className="badge error big-badge">Risky</span>;
+  return <span className="badge kind image big-badge">Soaking</span>;
+}
+
+// SoakProgress shows how far an update has got through its soak, until Renovate may propose it.
+// May, not will: the PR only comes on Renovate's next run, and only if Renovate covers the image.
+function SoakProgress({ soak }: { soak: SoakDecision }) {
+  if (!soak.releasedAt || !soak.eligibleAt) {
+    return (
+      <p className="sub">
+        {soak.newest} soaks for {soak.soak} before Renovate may propose it. Its release date isn't known yet, so the soak hasn't
+        started counting.
+      </p>
+    );
+  }
+  const released = Date.parse(soak.releasedAt);
+  const eligible = Date.parse(soak.eligibleAt);
+  const elapsed = Math.max(Date.now() - released, 0);
+  const percent = soak.released ? 100 : Math.min(Math.floor((elapsed / (eligible - released)) * 100), 100);
+  const overdue = soak.released && Date.now() - eligible > SOAK_OVERDUE_MS;
+  return (
+    <>
+      <div
+        className={`soak-bar ${soak.lane}`}
+        role="progressbar"
+        aria-label={`Soak of ${soak.newest}`}
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        title={`Counted from its ${soak.releaseSource}, ${timeAgo(soak.releasedAt)}`}
+      >
+        <div style={{ width: `${percent}%` }} />
+      </div>
+      {overdue ? (
+        <p className="sub">
+          <span className="worse">Soak finished {timeAgo(soak.eligibleAt)}, but no PR has appeared.</span> Check that Renovate covers
+          this image.
+        </p>
+      ) : soak.released ? (
+        <p className="sub">Soak finished. Renovate may open a PR for {soak.newest} on its next run.</p>
+      ) : (
+        <p className="sub">
+          {duration(elapsed)} of {soak.soak}. Renovate may propose {soak.newest} {timeUntil(soak.eligibleAt)}.
+        </p>
+      )}
+    </>
+  );
+}
+
+const deployedWaysHelp =
+  "This version's workloads come from different sources, so an update to one source may not reach all of them.";
+
+interface DeploymentGroup {
+  key: string;
+  label: string;
+  help: string;
+  workloads: Workload[];
+  // Open PRs known to update this group; a PR changing an image directly can't be tied to workloads
+  prs: Coverage[];
+}
+
+// deploymentGroups splits an image's workloads by what deploys them
+function deploymentGroups(image: RunningImage): DeploymentGroup[] {
+  const groups = new Map<string, DeploymentGroup>();
+  for (const w of image.workloads) {
+    const s = w.source;
+    const key = s ? `${s.kind}/${s.chart}` : 'none';
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        key,
+        label: !s ? 'No known source' : s.kind === 'chart' ? `Chart: ${s.chart}` : `Git chart: ${s.chart}`,
+        help: !s
+          ? "No Argo CD source declares these. An operator may create them, or they're deployed some other way, so an update elsewhere may or may not reach them."
+          : s.kind === 'chart'
+            ? 'From a Helm or OCI repository. These change when the chart is updated.'
+            : 'From a chart in a Git repository, so the image is set in that repository or its values.',
+        workloads: [],
+        prs: s ? image.coveredBy.filter((c) => c.via?.startsWith(`${s.chart} `)) : [],
+      };
+      groups.set(key, group);
+    }
+    group.workloads.push(w);
+  }
+  return [...groups.values()];
+}
+
+// DigestScans compares the digests of a tag that runs as several
+function DigestScans({ image, scans }: { image: RunningImage; scans: ScanSide[] }) {
+  return (
+    <>
+      <p className="sub">
+        This tag runs as {scans.length} different digests, so its workloads aren't all the same build. The table above is for the
+        marked one.
+      </p>
+      <ul className="workloads">
+        {scans.map((s) => (
+          <li key={s.digest}>
+            <a href={`#/history?q=${s.digest}`} title={s.digest}>
+              <code>{s.digest?.slice(0, 19)}…</code>
+            </a>
+            {s.status === 'done' ? (
+              <CveCounts counts={s.counts ?? {}} />
+            ) : (
+              <span className="muted" title={s.error}>
+                {s.status === 'pending' ? 'scanning…' : s.status === 'error' ? 'scan failed' : 'not scanned'}
+              </span>
+            )}
+            {s.digest === image.scan?.digest && <span className="muted">shown above</span>}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+// PinnedByChart explains why a chart's image gets no PR of its own: it changes with the chart.
+// Soak decisions exist for these images, but Renovate's rules for them match the image and not
+// the chart, so they don't affect when the chart updates and aren't shown.
+function PinnedByChart({ image }: { image: RunningImage }) {
+  const sources = [...new Map(image.workloads.flatMap((w) => (w.source ? [[w.source.chart, w.source] as const] : []))).values()];
+  const charts = sources.map((s) => s.chart).join(', ');
+  const newer = sources.flatMap((s) => (s.latest && s.latest !== s.version ? [`${s.chart} ${s.latest}`] : []));
+  return (
+    <>
+      <div className="big">
+        <span className="badge big-badge">Pinned</span>
+      </div>
+      <p className="sub">
+        Set by {sources.length === 0 ? 'a chart' : `the ${charts} ${sources.length === 1 ? 'chart' : 'charts'}`}, so no image PR will
+        come.{' '}
+        {newer.length > 0
+          ? `A PR updating to ${newer.join(' and ')} would update ${sources.length > 1 ? 'its workloads' : 'this image'}.`
+          : "The newest chart still uses this image, so it changes when a newer chart is released."}
+      </p>
+    </>
+  );
+}
+
+// PullRequestTile shows the open PRs updating a running version, the one matching it first
+function PullRequestTile({ image }: { image: RunningImage }) {
+  const prs = [...image.coveredBy].sort((a, b) => Number(b.matchesRunning) - Number(a.matchesRunning));
+  const pr = prs[0];
+  const soak = image.soak;
+  return (
+    <section className="tile">
+      <h2>Open PR</h2>
+      {!pr ? (
+        image.status === 'pinned' ? (
+          <PinnedByChart image={image} />
+        ) : soak ? (
+          <>
+            <div className="big">
+              <SoakState soak={soak} />
+            </div>
+            <SoakProgress soak={soak} />
+          </>
+        ) : (
+          <>
+            <div className="big muted">None</div>
+            <p className="sub">No open PR updates this image.</p>
+          </>
+        )
+      ) : (
+        <>
+          <div className="big">{pr.to ? imageTag(pr.to) : 'removed'}</div>
+          {prs.map((c) => (
+            <p key={`${c.repo}#${c.number}${c.via ?? ''}${c.from}`} className="sub">
+              <a href={`#/pr/${c.repo}/${c.number}`}>
+                #{c.number} {c.title}
+              </a>
+              {c.via && <> via chart {c.via}</>}
+              {!c.matchesRunning && <span className="worse"> Updates {imageTag(c.from)}, not the version running.</span>}
+            </p>
+          ))}
+        </>
+      )}
+    </section>
+  );
+}
+
+// ImageTag is one running version of an image on its page
+function ImageTag({ image, heading }: { image: RunningImage; heading: boolean }) {
+  const vulns = useMemo(() => [...(image.vulnerabilities ?? [])].sort(bySeverity), [image.vulnerabilities]);
+  const version = image.version;
+  const newest = version?.latest;
+  const hasUpdate = !!newest && newest !== version?.current;
+  const b = hasUpdate ? bump(version!.current, newest) : 'other';
+  const tag = image.tag ?? image.digests[0]?.slice(0, 19) ?? 'unknown';
+  const prTo = image.coveredBy.find((c) => c.matchesRunning)?.to;
+  const clusters = new Set(image.workloads.map((w) => w.cluster)).size;
+  const groups = deploymentGroups(image);
+
+  return (
+    <section className="image-version">
+      {heading && <h2>Version {tag}</h2>}
+      <div className="tiles">
+        <section className="tile">
+          <h2>Running now</h2>
+          <div className="big">{tag}</div>
+          <p className="sub">
+            {image.workloads.length} {image.workloads.length === 1 ? 'workload' : 'workloads'} in {clusters}{' '}
+            {clusters === 1 ? 'cluster' : 'clusters'}
+          </p>
+          {image.digests.map((d) => (
+            <p key={d} className="sub">
+              <a href={`#/history?q=${d}`} title={`${d}: everywhere this digest has run`}>
+                <code>{d.slice(0, 19)}…</code>
+              </a>
+              <CopyButton text={d} />
+            </p>
+          ))}
+        </section>
+
+        <PullRequestTile image={image} />
+
+        <section className="tile">
+          <h2>Latest available</h2>
+          {!newest ? (
+            <>
+              <div className="big muted">Unknown</div>
+              <p className="sub">{version?.error ?? 'No newer version could be looked up for this tag.'}</p>
+            </>
+          ) : (
+            <>
+              <div className="big">{newest}</div>
+              <p className="sub">
+                {hasUpdate ? 'The newest tag of the same variant.' : 'Already running the newest tag of the same variant.'}
+                {version?.checkedAt && ` Checked ${timeAgo(version.checkedAt)}.`}
+              </p>
+            </>
+          )}
+        </section>
+      </div>
+
+      <div className="image-panels">
+        <section className="tile">
+          <h2>What this means</h2>
+          <dl className="explain">
+            <dt>
+              <StatusBadge status={image.status} version={version} />
+            </dt>
+            <dd>{statusHelp(image)}</dd>
+            {b !== 'other' && (
+              <>
+                <dt>
+                  <span className={`badge bump ${b}`}>{b}</span>
+                </dt>
+                <dd>
+                  {bumpHelp[b]}{' '}
+                  <span className="muted">
+                    That's for {version!.current} → {newest}, assuming this image follows semantic versioning.
+                  </span>
+                </dd>
+              </>
+            )}
+            {groups.length > 1 && (
+              <>
+                <dt>
+                  <span className="badge">deployed {groups.length} ways</span>
+                </dt>
+                <dd>{deployedWaysHelp} See where it runs below.</dd>
+              </>
+            )}
+            {image.soak && image.status !== 'pinned' && (
+              <>
+                <dt>
+                  <SoakBadge soak={image.soak} />
+                </dt>
+                <dd>{soakHelp(image.soak)}</dd>
+              </>
+            )}
+          </dl>
+        </section>
+
+        <section className="tile">
+          <h2>Vulnerabilities</h2>
+          {image.scan?.status === 'done' ? (
+            <>
+              <CveComparison image={image} />
+              <p className="sub">
+                Trivy scanned this digest{image.scan.scannedAt && ` ${timeAgo(image.scan.scannedAt)}`}, and re-checks it daily.
+                {hasUpdate && ` "After update" is the latest version, ${newest}.`}
+                {hasUpdate && prTo && imageTag(prTo) !== newest && ` The open PR updates to ${imageTag(prTo)}, so its numbers may differ.`}
+              </p>
+              {image.digestScans && <DigestScans image={image} scans={image.digestScans} />}
+            </>
+          ) : image.scan ? (
+            <RunningScan image={image} />
+          ) : (
+            <p className="message">Not scanned: scanning is off, or no digest is known for this image.</p>
+          )}
+        </section>
+      </div>
+
+      <section className="tile">
+        <h2>Where it runs</h2>
+        {groups.map((g) => (
+          <div key={g.key} className="deployment">
+            <h3>
+              {g.label} <span className="muted">({g.workloads.length})</span>
+            </h3>
+            <p className="sub">{g.help}</p>
+            <WorkloadList workloads={g.workloads} />
+            {g.prs.map((c) => (
+              <p key={`${c.repo}#${c.number}`} className="sub">
+                Updated by{' '}
+                <a href={`#/pr/${c.repo}/${c.number}`}>
+                  #{c.number} {c.title}
+                </a>
+              </p>
+            ))}
+          </div>
+        ))}
+      </section>
+
+      {(vulns.length > 0 || (image.update && hasUpdate)) && (
+        <section className="tile">
+          <h2>CVE details</h2>
+          {vulns.length > 0 && (
+            <details className="vulns">
+              <summary>
+                {vulns.length} {vulns.length === 1 ? 'CVE' : 'CVEs'} in this version
+              </summary>
+              <VulnerabilityTable rows={vulns.map((vuln) => ({ vuln }))} />
+            </details>
+          )}
+          {image.update && hasUpdate && <Vulnerabilities label={`Updating to ${newest}`} scan={image.update} />}
+        </section>
+      )}
+    </section>
+  );
+}
+
+// ImagePage shows one image repository: the open PRs changing it and each version running
+function ImagePage({ repository }: { repository: string }) {
+  const { data, error } = usePoll(() => getImage(repository), [repository]);
+  // PRs on a running version are shown with it
+  const prKey = (c: Coverage) => `${c.repo}#${c.number}/${c.from}/${c.to}/${c.via ?? ''}`;
+  const shown = new Set(data?.tags.flatMap((t) => t.coveredBy.map(prKey)));
+  const otherPRs = data?.pullRequests.filter((c) => !shown.has(prKey(c))) ?? [];
+
+  return (
+    <div className="detail">
+      <a className="back" href="#/images">
+        ← All running images
+      </a>
+      {error && <p className="message error">{error}</p>}
+      {!data && !error && <p className="message">Loading…</p>}
+      {data && (
+        <>
+          <h1>{shortRepository(data.repository)}</h1>
+          {shortRepository(data.repository) !== data.repository && <p className="sub">{data.repository}</p>}
+          {data.tags.length === 0 && (
+            <p className="message">
+              Not running in any inventoried cluster{data.pullRequests.length === 0 && ', and no open PR changes it'}.
+            </p>
+          )}
+
+          {data.tags.map((image) => (
+            <ImageTag key={image.tag ?? image.digests.join(',')} image={image} heading={data.tags.length > 1} />
+          ))}
+
+          {otherPRs.length > 0 && (
+            <section className="tile">
+              <h2>{data.tags.length > 0 ? 'Other open pull requests' : 'Open pull requests'}</h2>
+              {data.tags.length > 0 && <p className="sub">These change this image, but not a version that's running.</p>}
+              {otherPRs.map((c) => (
+                <div key={`${c.repo}#${c.number}${c.via ?? ''}${c.from}${c.to}`} className="change">
+                  <a href={`#/pr/${c.repo}/${c.number}`}>
+                    <span className="number">#{c.number}</span> {c.title}
+                  </a>
+                  <span className="versions">
+                    {c.from ? imageTag(c.from) : 'added'} → {c.to ? imageTag(c.to) : 'removed'}
+                  </span>
+                  {c.via && <span className="muted">via chart {c.via}</span>}
+                </div>
+              ))}
+            </section>
+          )}
+
+          <ImageHistory repository={repository} />
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1733,7 +2351,9 @@ function ChartRender({ change, render }: { change: ChangeView; render: ChartRend
                       </div>
                     )}
                   </td>
-                  <td>{shortRepository(imageName(img.from || img.to))}</td>
+                  <td>
+                    <a href={imageHref(img.from || img.to)}>{shortRepository(imageName(img.from || img.to))}</a>
+                  </td>
                   <td>{img.from ? <code title={img.from}>{imageTag(img.from)}</code> : <span className="muted">added</span>}</td>
                   <td>{img.to ? <code title={img.to}>{imageTag(img.to)}</code> : <span className="muted">removed</span>}</td>
                   <td>{img.scan ? <ScanBadges scan={img.scan} /> : <span className="muted">—</span>}</td>

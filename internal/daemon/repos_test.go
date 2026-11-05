@@ -27,41 +27,41 @@ func (f *fakeLister) ListOwnerRepos(_ context.Context, owner string) ([]github.R
 	repos := []github.Repository{}
 	for _, name := range f.repos[owner] {
 		r := github.Repository{FullName: name}
-		r.Archived = name == "etalore/old"
-		r.Fork = name == "etalore/forked"
+		r.Archived = name == "example/old"
+		r.Fork = name == "example/forked"
 		repos = append(repos, r)
 	}
 	return repos, nil
 }
 
 func TestValidateRepo(t *testing.T) {
-	assert.NoError(t, validateRepo(RepoConfig{Name: "etalore/deploy"}))
-	assert.NoError(t, validateRepo(RepoConfig{Name: "etalore/*", Exclude: []string{"etalore/docs", "etalore/test-*"}}))
-	assert.ErrorContains(t, validateRepo(RepoConfig{Name: "etalore"}), "must be owner/name")
+	assert.NoError(t, validateRepo(RepoConfig{Name: "example/deploy"}))
+	assert.NoError(t, validateRepo(RepoConfig{Name: "example/*", Exclude: []string{"example/docs", "example/test-*"}}))
+	assert.ErrorContains(t, validateRepo(RepoConfig{Name: "example"}), "must be owner/name")
 	assert.ErrorContains(t, validateRepo(RepoConfig{Name: "*/deploy"}), "owner can't be a pattern")
-	assert.ErrorContains(t, validateRepo(RepoConfig{Name: "etalore/[x"}), "invalid repo pattern")
-	assert.ErrorContains(t, validateRepo(RepoConfig{Name: "etalore/deploy", Exclude: []string{"etalore/x"}}), "only applies to patterns")
+	assert.ErrorContains(t, validateRepo(RepoConfig{Name: "example/[x"}), "invalid repo pattern")
+	assert.ErrorContains(t, validateRepo(RepoConfig{Name: "example/deploy", Exclude: []string{"example/x"}}), "only applies to patterns")
 }
 
 func TestRepoSetRefresh(t *testing.T) {
 	ctx := context.Background()
 	lister := &fakeLister{repos: map[string][]string{
-		"etalore": {"etalore/deploy", "etalore/Docs", "etalore/ghostline", "etalore/old", "etalore/forked", "etalore/test-a"},
+		"example": {"example/deploy", "example/Docs", "example/webapp", "example/old", "example/forked", "example/test-a"},
 	}}
 	s := newRepoSet([]RepoConfig{
 		{Name: "other/app", BranchPrefix: "deps/"},
-		{Name: "etalore/deploy", BranchPrefix: "deps/"},
-		{Name: "etalore/*", Exclude: []string{"etalore/docs", "etalore/test-*"}, BranchPrefix: "renovate/"},
-		{Name: "etalore/ghost*", BranchPrefix: "renovate/"},
+		{Name: "example/deploy", BranchPrefix: "deps/"},
+		{Name: "example/*", Exclude: []string{"example/docs", "example/test-*"}, BranchPrefix: "renovate/"},
+		{Name: "example/web*", BranchPrefix: "renovate/"},
 	})
-	assert.Equal(t, []Repo{{"other/app", "deps/"}, {"etalore/deploy", "deps/"}}, s.Repos(), "plain names before the first listing")
+	assert.Equal(t, []Repo{{"other/app", "deps/"}, {"example/deploy", "deps/"}}, s.Repos(), "plain names before the first listing")
 	assert.False(t, s.complete())
 
 	summary, err := s.refresh(ctx, lister, time.Hour)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"etalore"}, lister.calls, "each owner listed once")
+	assert.Equal(t, []string{"example"}, lister.calls, "each owner listed once")
 	assert.Equal(t, "3 repos, 1 owner listed", summary)
-	assert.Equal(t, []Repo{{"other/app", "deps/"}, {"etalore/deploy", "deps/"}, {"etalore/ghostline", "renovate/"}}, s.Repos(),
+	assert.Equal(t, []Repo{{"other/app", "deps/"}, {"example/deploy", "deps/"}, {"example/webapp", "renovate/"}}, s.Repos(),
 		"archived, forked and excluded (ignoring case) repos are left out; the first entry's branch prefix wins")
 	assert.True(t, s.complete())
 
@@ -84,12 +84,12 @@ func TestSyncRepoList(t *testing.T) {
 	st, err := store.Open(filepath.Join(t.TempDir(), "imginq.db"))
 	require.NoError(t, err)
 	defer st.Close()
-	for _, repo := range []string{"etalore/deploy", "etalore/archived-since"} {
+	for _, repo := range []string{"example/deploy", "example/archived-since"} {
 		require.NoError(t, st.UpsertPullRequest(ctx, &store.PullRequest{Repo: repo, Number: 1, State: store.PullRequestStateOpen}))
 	}
 
 	lister := &fakeLister{err: errors.New("unreachable")}
-	d := &Daemon{store: st, repoLister: lister, repos: newRepoSet([]RepoConfig{{Name: "etalore/*"}})}
+	d := &Daemon{store: st, repoLister: lister, repos: newRepoSet([]RepoConfig{{Name: "example/*"}})}
 
 	_, err = d.syncRepoList(ctx)
 	require.Error(t, err)
@@ -98,12 +98,12 @@ func TestSyncRepoList(t *testing.T) {
 	assert.Len(t, repos, 2, "nothing closed without a good listing")
 
 	lister.err = nil
-	lister.repos = map[string][]string{"etalore": {"etalore/deploy"}}
-	d.repos = newRepoSet([]RepoConfig{{Name: "etalore/*"}})
+	lister.repos = map[string][]string{"example": {"example/deploy"}}
+	d.repos = newRepoSet([]RepoConfig{{Name: "example/*"}})
 	summary, err := d.syncRepoList(ctx)
 	require.NoError(t, err)
-	assert.Contains(t, summary, "no longer tracking etalore/archived-since")
+	assert.Contains(t, summary, "no longer tracking example/archived-since")
 	repos, err = st.ListOpenPullRequestRepos(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"etalore/deploy"}, repos)
+	assert.Equal(t, []string{"example/deploy"}, repos)
 }

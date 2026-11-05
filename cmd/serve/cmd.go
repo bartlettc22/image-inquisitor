@@ -67,6 +67,7 @@ func run(cmd *cobra.Command, args []string) {
 		GitHubAPIURL: c.GitHub.APIURL,
 		GitHubToken:  c.GitHub.Token != "",
 		Scanning:     d.Scanning(),
+		TrivyVersion: d.TrivyVersion(),
 		Clusters:     make([]api.ClusterConfig, 0, len(c.Kubernetes.Clusters)),
 	}
 	if r := c.Renovate; r != nil {

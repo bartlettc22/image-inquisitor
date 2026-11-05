@@ -121,6 +121,27 @@ func RunningRef(image, digest string) string {
 	return base + "@" + digest
 }
 
+// versionTimeout bounds reading the version, which happens at startup
+const versionTimeout = 10 * time.Second
+
+// Version returns the version of the trivy binary
+func (s *Scanner) Version(ctx context.Context) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, versionTimeout)
+	defer cancel()
+
+	out, err := s.trivy(ctx, "version", "--format", "json")
+	if err != nil {
+		return "", err
+	}
+	var version struct {
+		Version string `json:"Version"`
+	}
+	if err := json.Unmarshal(out, &version); err != nil {
+		return "", fmt.Errorf("error parsing trivy version: %w", err)
+	}
+	return version.Version, nil
+}
+
 // TagRef is the reference of a tag of a repository, e.g. the newest version of a running image
 func TagRef(repository, tag string) string {
 	return repository + ":" + tag

@@ -59,17 +59,17 @@ func TestStore(t *testing.T) {
 	assert.Len(t, all, 2)
 
 	containers := []workloads.Container{
-		{Cluster: "bernes", Namespace: "romm", WorkloadKind: "Deployment", WorkloadName: "romm", Pod: "romm-1", Container: "romm", Image: "rommapp/romm:3.9.0", Digest: "sha256:aaa", ArgoApp: "romm"},
+		{Cluster: "lab", Namespace: "app", WorkloadKind: "Deployment", WorkloadName: "app", Pod: "app-1", Container: "app", Image: "org/app:3.9.0", Digest: "sha256:aaa", ArgoApp: "app"},
 	}
-	require.NoError(t, s.ReplaceContainers(ctx, "bernes", containers, now, nil))
+	require.NoError(t, s.ReplaceContainers(ctx, "lab", containers, now, nil))
 	// A failed inventory keeps the previous containers and records the error
-	require.NoError(t, s.ReplaceContainers(ctx, "bernes", nil, now, errors.New("unreachable")))
+	require.NoError(t, s.ReplaceContainers(ctx, "lab", nil, now, errors.New("unreachable")))
 	stored, err := s.ListContainers(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, containers, stored)
 	clusters, err := s.ListClusters(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, []Cluster{{Name: "bernes", SyncedAt: now, Containers: 1, Error: "unreachable"}}, clusters)
+	assert.Equal(t, []Cluster{{Name: "lab", SyncedAt: now, Containers: 1, Error: "unreachable"}}, clusters)
 
 	_, err = s.LastSyncRun(ctx)
 	assert.True(t, errors.Is(err, ErrNotFound))

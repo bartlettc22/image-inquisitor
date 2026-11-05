@@ -121,7 +121,7 @@ func TestRenovateGlobalConfigWithSoak(t *testing.T) {
 	c, err := loadConfig(t, yaml)
 	require.NoError(t, err)
 
-	global := c.Renovate.globalConfig([]string{"etalore/deploy"}, []map[string]any{{"matchNewValue": "/^1$/"}})
+	global := c.Renovate.globalConfig([]string{"example/deploy"}, []map[string]any{{"matchNewValue": "/^1$/"}})
 	assert.Equal(t, "14 days", global["minimumReleaseAge"])
 	rules := global["packageRules"].([]any)
 	require.Len(t, rules, 2, "configured rules first, then the soak's")

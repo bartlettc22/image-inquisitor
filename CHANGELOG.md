@@ -1,3 +1,26 @@
+# v0.5.0
+Adds a page for every image, and a permanent record of every image that runs in your clusters. See [Using the UI](docs/ui.md).
+
+Upgrading:
+* The daemon now needs `watch` on `pods`, `replicasets` and `jobs`. The chart's ClusterRole includes it; clusters reached by kubeconfig need it [added](docs/install.md). Without it the History view shows the cluster as never recorded, and everything else keeps working
+* History adds to the database for as long as it runs, with no retention limit yet, so keep an eye on the volume's size
+
+Added:
+* Image history: watches pods live and records every container with its image, digest, pod, node and workload, and when it started and ended. Includes init containers, `kubectl debug` ephemeral containers, pods that live for seconds and images that never started. Kept indefinitely
+* History view: search by image, digest, namespace, workload, pod or node, or see what was present at a point in time, with each cluster's recording status and gaps
+* Image page: click an image's name anywhere for what's running, the open PR and the latest version, plain explanations of its status, update size and soak, a before and after CVE comparison, where it runs and its history
+* Soak progress on the image page, showing how long until Renovate may propose an update, and a warning when a soak finished long ago with no PR
+* Workloads grouped by what deploys them on the image page, with a "deployed N ways" note when a version comes from several sources
+* CVEs per digest when one tag runs as several digests
+* Workload counts in Running images, and which clusters run each image when there are several
+* The Trivy version in the Configuration dialog
+* `GET /api/v1/images/{repository}` and `GET /api/v1/history`
+
+Changed:
+* The views are linked from the header on every page, with Running images before Pull requests
+* The landing tab is called Dashboard, and no longer has an Argo CD apps panel
+* The UI uses one sans-serif font throughout, dropping the bundled serif
+
 # v0.4.0
 A rewrite: image-inquisitor is now a long-running daemon with a web UI that follows your Renovate PRs and running images. See the [docs](docs/README.md).
 

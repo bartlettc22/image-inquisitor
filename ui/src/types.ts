@@ -80,7 +80,7 @@ export interface ScanSide {
 }
 
 // The vulnerabilities an image change fixes and introduces; a side is null for an
-// added or removed container. Lists are only included for a single PR.
+// added or removed container. Lists are only included for a single PR or image.
 export interface ScanDelta {
   from: ScanSide | null;
   to: ScanSide | null;
@@ -170,6 +170,56 @@ export interface RunningImage {
   scan?: ScanSide;
   update?: ScanDelta;
   soak?: SoakDecision;
+  // Only included for a single image
+  vulnerabilities?: Vulnerability[];
+  // Each digest's scan when the tag runs as several; only included for a single image
+  digestScans?: ScanSide[];
+}
+
+// A stretch of time one image digest was present in a container of a pod (internal/store HistoryEntry)
+export interface HistoryEntry {
+  id: number;
+  cluster: string;
+  namespace: string;
+  workloadKind: string;
+  workloadName: string;
+  pod: string;
+  podUID: string;
+  node?: string;
+  container: string;
+  containerType?: 'init' | 'ephemeral';
+  image: string;
+  repository: string;
+  digest?: string;
+  argoApp?: string;
+  ran: boolean;
+  startedAt: string;
+  recordedAt: string;
+  // The zero time while it's still present; check endReason
+  endedAt: string;
+  endReason?: 'stopped' | 'deleted' | 'replaced' | 'never_started' | 'unobserved';
+}
+
+// The time a cluster's pods were watched; containers outside it may be missing from the history
+export interface ClusterCoverage {
+  cluster: string;
+  recording: boolean;
+  since?: string;
+  lastSeen?: string;
+  gaps: { from: string; to: string }[];
+}
+
+export interface HistoryResponse {
+  entries: HistoryEntry[];
+  truncated: boolean;
+  coverage: ClusterCoverage[];
+}
+
+// One image repository: its running tags and the open PRs changing it, running or not
+export interface ImageDetail {
+  repository: string;
+  tags: RunningImage[];
+  pullRequests: Coverage[];
 }
 
 // How long the update of a running tag to its newest version soaks (internal/daemon SoakDecision)
@@ -358,6 +408,7 @@ export interface Config {
   githubAPIURL?: string;
   githubToken: boolean;
   scanning: boolean;
+  trivyVersion?: string;
   repos: RepoPattern[];
   clusters: {
     name: string;

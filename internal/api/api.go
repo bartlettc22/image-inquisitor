@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/bartlettc22/image-inquisitor/internal/argocd"
@@ -38,6 +39,9 @@ type Config struct {
 
 	// Scanning is whether the daemon scans PR images
 	Scanning bool `json:"scanning"`
+
+	// TrivyVersion is empty if it isn't known
+	TrivyVersion string `json:"trivyVersion,omitempty"`
 
 	// Repos are filled in per request, as patterns' matches change
 	Repos    []daemon.RepoPattern `json:"repos"`
@@ -100,6 +104,8 @@ func NewHandler(s *store.Store, syncer Syncer, config *Config) http.Handler {
 	mux.HandleFunc("GET /api/v1/prs", h.listPullRequests)
 	mux.HandleFunc("GET /api/v1/prs/{owner}/{repo}/{number}", h.getPullRequest)
 	mux.HandleFunc("GET /api/v1/images", h.listRunningImages)
+	mux.HandleFunc("GET /api/v1/images/{repository...}", h.getImage)
+	mux.HandleFunc("GET /api/v1/history", h.history)
 	mux.HandleFunc("GET /api/v1/apps", h.listApps)
 	mux.HandleFunc("GET /api/v1/trends", h.trends)
 	mux.HandleFunc("GET /metrics", h.metrics)
@@ -270,19 +276,51 @@ func (h *handler) listRunningImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	images := runningImages(inv.containers, prs, inv.versions)
-	attachSoaks(images, h.syncer.SoakDecisions())
-	idx, err := h.scanIndex(r)
+	if err := h.attachImageState(r, images, false); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, images)
+}
+
+// getImage returns one repository's running tags and open PRs. An image that isn't running and
+// has no open PR is not an error: a merged PR's page still links to it.
+func (h *handler) getImage(w http.ResponseWriter, r *http.Request) {
+	ref, ok := parseImage(r.PathValue("repository"))
+	if !ok {
+		http.Error(w, "invalid image repository", http.StatusBadRequest)
+		return
+	}
+	inv, err := h.inventory(r)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	if idx != nil {
-		if err := attachRunningScans(images, idx); err != nil {
-			writeError(w, err)
-			return
-		}
+	prs, err := h.store.ListPullRequests(r.Context(), store.PullRequestStateOpen)
+	if err != nil {
+		writeError(w, err)
+		return
 	}
-	writeJSON(w, http.StatusOK, images)
+
+	containers := slices.DeleteFunc(slices.Clone(inv.containers), func(c parsedContainer) bool {
+		return c.ref.repository != ref.repository
+	})
+	tags := runningImages(containers, prs, inv.versions)
+	if err := h.attachImageState(r, tags, true); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, imageDetail(ref.repository, tags, containers, prs))
+}
+
+// attachImageState adds running images' soak decisions and, when scanning is on, their scans
+func (h *handler) attachImageState(r *http.Request, images []RunningImage, withVulnerabilities bool) error {
+	attachSoaks(images, h.syncer.SoakDecisions())
+	idx, err := h.scanIndex(r)
+	if err != nil || idx == nil {
+		return err
+	}
+	return attachRunningScans(images, idx, withVulnerabilities)
 }
 
 func (h *handler) listApps(w http.ResponseWriter, r *http.Request) {
